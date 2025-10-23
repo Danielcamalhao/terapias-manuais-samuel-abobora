@@ -6,21 +6,17 @@ import Link from "next/link";
 
 export default function ClienteDashboard() {
   const router = useRouter();
-  const [user] = useState<{ name: string } | null>(() => {
-    // Inicializar estado com valor do localStorage
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem("user");
-      return storedUser ? JSON.parse(storedUser) : null;
-    }
-    return null;
-  });
+  const [user, setUser] = useState<{ name: string } | null>(null);
 
   useEffect(() => {
-    // Verificar se precisa redirecionar para login
-    if (!user) {
+    // Verificar localStorage apenas no cliente
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    } else {
       router.push("/login");
     }
-  }, [user, router]);
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
