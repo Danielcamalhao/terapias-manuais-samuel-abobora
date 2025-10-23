@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(CLIENT)
+  phone        String?
+  birthDate    DateTime?
+  profession   String?
+  addressCity  String?
+  addressPost  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings     Booking[]
+}
+
+model Practitioner {
+  id          String   @id @default(uuid())
+  name        String
+  bio         String?
+  photoUrl    String?
+  specialties String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  availabilities Availability[]
+  bookings       Booking[]
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String
+  durationMin Int
+  priceCents  Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings    Booking[]
+}
+
+model Availability {
+  id             String   @id @default(uuid())
+  practitionerId String
+  weekday        Int
+  startTime      String
+  endTime        String
+  breakStart     String?
+  breakEnd       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
+}
+
+model Booking {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  userId         String
+  practitionerId String
+  serviceId      String
+  startAt        DateTime
+  endAt          DateTime
+  status         BookingStatus @default(PENDING)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id])
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
+  service        Service      @relation(fields: [serviceId], references: [id])
+
+  @@index([practitionerId, startAt])
+  @@index([userId, startAt])
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+}
