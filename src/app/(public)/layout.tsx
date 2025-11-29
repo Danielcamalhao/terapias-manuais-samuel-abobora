@@ -5,8 +5,16 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
 
@@ -14,10 +22,18 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     // Verificar autenticação via API
     const checkAuth = async () => {
       try {
-        const res = await fetch("/api/profile");
-        setLoggedIn(res.ok);
+        const res = await fetch("/api/profile", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setLoggedIn(true);
+          setUser(data);
+        } else {
+          setLoggedIn(false);
+          setUser(null);
+        }
       } catch {
         setLoggedIn(false);
+        setUser(null);
       }
     };
 
@@ -37,6 +53,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       await fetch("/api/logout", { method: "POST" });
       localStorage.removeItem("user");
       setLoggedIn(false);
+      setUser(null);
       router.push("/auth/login");
     } catch (error) {
       console.error("Erro no logout:", error);
@@ -133,12 +150,23 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 </Link>
               </>
             ) : (
-              <button
-                onClick={handleLogout}
-                className="relative overflow-hidden bg-red-50 border-2 border-red-200 text-red-600 px-5 py-2.5 rounded-lg font-semibold tracking-wide group transition-all duration-300 hover:bg-red-500 hover:text-white hover:border-red-500"
-              >
-                <span className="relative z-10">Logout</span>
-              </button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-full border border-gray-200">
+                  <div className="w-9 h-9 rounded-full bg-green-700 text-white flex items-center justify-center font-bold">
+                    {user?.name?.slice(0, 1).toUpperCase() || "U"}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-gray-900">{user?.name || "Utilizador"}</p>
+                    <p className="text-xs text-gray-600">{user?.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="relative overflow-hidden bg-red-50 border-2 border-red-200 text-red-600 px-5 py-2.5 rounded-lg font-semibold tracking-wide group transition-all duration-300 hover:bg-red-500 hover:text-white hover:border-red-500"
+                >
+                  <span className="relative z-10">Logout</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

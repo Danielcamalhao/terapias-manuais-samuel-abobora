@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Calendar,
+  dateFnsLocalizer,
+  type SlotInfo,
+} from "react-big-calendar";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import {
+  addMinutes,
+  addWeeks,
+  differenceInMinutes,
+  format,
+  getDay,
+  parse,
+  startOfWeek,
+} from "date-fns";
+import { pt } from "date-fns/locale";
 
 interface Service {
   id: string;
@@ -42,6 +57,28 @@ interface AvailableSlot {
   endTime: string;
 }
 
+type CalendarEvent = {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  status?: string;
+  serviceName?: string;
+  durationMin?: number;
+  userName?: string;
+  isDraft?: boolean;
+};
+
+const locales = { "pt-PT": pt, pt };
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+const DragAndDropCalendar = withDragAndDrop(Calendar);
+
 export default function MarcacoesBackoffice() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -60,6 +97,9 @@ export default function MarcacoesBackoffice() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [notes, setNotes] = useState("");
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [draftEvent, setDraftEvent] = useState<CalendarEvent | null>(null);
+  const [movingBooking, setMovingBooking] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState("ALL");
@@ -125,7 +165,8 @@ export default function MarcacoesBackoffice() {
 
   const handleCreateBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSlot || !selectedUser) {
+    const slotToUse = draftEvent ? draftEvent.start.toISOString() : selectedSlot;
+    if (!slotToUse || !selectedUser) {
       setError("Por favor preencha todos os campos obrigatórios");
       return;
     }
@@ -140,7 +181,8 @@ export default function MarcacoesBackoffice() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId: selectedService,
-          startAt: selectedSlot,
+          startAt: slotToUse,
+          userId: selectedUser,
           notes: notes || undefined,
         }),
       });
@@ -207,6 +249,7 @@ export default function MarcacoesBackoffice() {
     setSelectedDate("");
     setSelectedSlot("");
     setNotes("");
+    setDraftEvent(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -233,6 +276,179 @@ export default function MarcacoesBackoffice() {
     }
     return true;
   });
+
+  const calendarEvents = useMemo(() => {
+    const baseEvents: CalendarEvent[] = bookings.map((booking) => ({
+      id: booking.id,
+      title: `${booking.service.name} · ${booking.user.name}`,
+      start: new Date(booking.startAt),
+      end: new Date(booking.endAt),
+      status: booking.status,
+      serviceName: booking.service.name,
+      durationMin: booking.service.durationMin,
+      userName: booking.user.name,
+    }));
+
+    return draftEvent ? [...baseEvents, draftEvent] : baseEvents;
+  }, [bookings, draftEvent]);
+
+  const eventPropGetter = (event: CalendarEvent) => {
+    if (event.isDraft) {
+      return {
+        style: {
+          backgroundColor: "rgba(22, 163, 74, 0.15)",
+          color: "#0f172a",
+          border: "1px dashed #16a34a",
+          borderRadius: "12px",
+        },
+      };
+    }
+
+    const colors: Record<string, string> = {
+      CONFIRMED: "#16a34a",
+      PENDING: "#f59e0b",
+      CANCELLED: "#9ca3af",
+      NO_SHOW: "#ef4444",
+    };
+
+    const background = colors[event.status || "PENDING"] || "#16a34a";
+
+    return {
+      style: {
+        backgroundColor: background,
+        color: "#fff",
+        border: "1px solid rgba(0,0,0,0.05)",
+        borderRadius: "12px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+      },
+    };
+  };
+
+  const handleSlotSelect = (slot: SlotInfo) => {
+    const service = services.find((s) => s.id === selectedService);
+    const selectionMinutes = Math.max(
+      differenceInMinutes(slot.end ?? slot.start, slot.start),
+      30
+    );
+    const duration = service?.durationMin || selectionMinutes;
+    const end = addMinutes(slot.start, duration);
+
+    setDraftEvent({
+      id: "draft",
+      title: service ? `Nova · ${service.name}` : "Nova marcação",
+      start: slot.start,
+      end,
+      isDraft: true,
+      serviceName: service?.name,
+      durationMin: duration,
+    });
+    setSelectedDate(slot.start.toISOString().split("T")[0]);
+    setSelectedSlot(slot.start.toISOString());
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  };
+
+  const updateEventPosition = (event: CalendarEvent, start: Date, end?: Date) => {
+    const baseDuration =
+      event.durationMin ||
+      Math.max(differenceInMinutes(event.end, event.start), 30);
+    const durationMinutes = end
+      ? Math.max(differenceInMinutes(end, start), 15)
+      : baseDuration;
+    const newEnd = addMinutes(start, durationMinutes);
+
+    if (event.isDraft) {
+      setDraftEvent({ ...event, start, end: newEnd, durationMin: durationMinutes });
+      setSelectedDate(start.toISOString().split("T")[0]);
+      setSelectedSlot(start.toISOString());
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleEventDrop = async ({
+    event,
+    start,
+  }: {
+    event: CalendarEvent;
+    start: Date;
+  }) => {
+    if (updateEventPosition(event, start)) return;
+
+    setMovingBooking(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`/api/bookings/${event.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startAt: start.toISOString() }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erro ao mover marcação");
+      }
+
+      setSuccess("Horário atualizado no calendário");
+      fetchData();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setMovingBooking(false);
+    }
+  };
+
+  const handleEventResize = async ({
+    event,
+    start,
+    end,
+  }: {
+    event: CalendarEvent;
+    start: Date;
+    end: Date;
+  }) => {
+    if (updateEventPosition(event, start, end)) return;
+
+    setMovingBooking(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`/api/bookings/${event.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startAt: start.toISOString() }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erro ao redimensionar marcação");
+      }
+
+      setSuccess("Horário atualizado no calendário");
+      fetchData();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setMovingBooking(false);
+    }
+  };
+
+  const businessDayStart = useMemo(() => {
+    const date = new Date();
+    date.setHours(8, 0, 0, 0);
+    return date;
+  }, []);
+
+  const businessDayEnd = useMemo(() => {
+    const date = new Date();
+    date.setHours(21, 0, 0, 0);
+    return date;
+  }, []);
 
   if (loading) {
     return (
@@ -274,6 +490,154 @@ export default function MarcacoesBackoffice() {
             {success}
           </div>
         )}
+
+        {/* Calendário interativo */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                Calendário semanal
+              </h2>
+              <p className="text-gray-600">
+                Arraste para criar um horário, ajuste o bloco ou mova marcações existentes.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-green-600"></span> Confirmada
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Pendente
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-200 text-gray-700 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-gray-500"></span> Cancelada
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span> Faltou
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <div className="text-sm font-semibold text-gray-800">Navegar semanas</div>
+                <div className="flex items-center gap-2 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    ← Semana anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(new Date())}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    Hoje
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    Próxima semana →
+                  </button>
+                </div>
+              </div>
+              <DragAndDropCalendar
+                localizer={localizer}
+                events={calendarEvents}
+                defaultView="week"
+                date={calendarDate}
+                views={["week", "day"]}
+                step={30}
+                timeslots={2}
+                selectable
+                resizable
+                popup
+                style={{ height: 580 }}
+                onSelectSlot={handleSlotSelect}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
+                onNavigate={(date) => setCalendarDate(date)}
+                eventPropGetter={eventPropGetter}
+                draggableAccessor={() => true}
+                tooltipAccessor={(event) =>
+                  `${event.serviceName || ""}${event.userName ? ` · ${event.userName}` : ""}`
+                }
+                min={businessDayStart}
+                max={businessDayEnd}
+                messages={{
+                  week: "Semana",
+                  day: "Dia",
+                  previous: "Anterior",
+                  next: "Seguinte",
+                  today: "Hoje",
+                  month: "Mês",
+                }}
+              />
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
+              <h3 className="text-lg font-semibold text-gray-900">Criar/ajustar via calendário</h3>
+              {draftEvent ? (
+                <div className="space-y-2 text-sm text-gray-700">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Horário selecionado</span>
+                      <button
+                        onClick={() => {
+                          setDraftEvent(null);
+                          setSelectedSlot("");
+                          setSelectedDate("");
+                        }}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  <p>
+                    {format(draftEvent.start, "EEEE, dd MMMM", { locale: pt })} às{" "}
+                    {format(draftEvent.start, "HH:mm")} (
+                    {draftEvent.durationMin || differenceInMinutes(draftEvent.end, draftEvent.start)}{" "}
+                    min)
+                  </p>
+                  <p className="text-gray-600">
+                    Ajuste o bloco no calendário para aumentar/diminuir ou mover para outro dia.
+                  </p>
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="w-full bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
+                    disabled={!selectedService || !selectedUser}
+                  >
+                    Usar horário no formulário
+                  </button>
+                  {!selectedService && (
+                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                      Selecione um serviço para aplicar a duração correta.
+                    </p>
+                  )}
+                  {!selectedUser && (
+                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                      Selecione o cliente antes de gravar a marcação.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Selecione um bloco de tempo no calendário (pode arrastar e redimensionar) para
+                  preencher automaticamente o formulário de nova marcação.
+                </p>
+              )}
+              {movingBooking && (
+                <div className="text-sm text-gray-600 bg-white border border-gray-200 rounded-lg p-2">
+                  A atualizar marcação...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Formulário de Nova Marcação */}
         {showForm && (
@@ -389,7 +753,7 @@ export default function MarcacoesBackoffice() {
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  disabled={creating || !selectedSlot}
+                  disabled={creating || (!selectedSlot && !draftEvent)}
                   className="flex-1 bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
                 >
                   {creating ? "A criar..." : "Criar Marcação"}

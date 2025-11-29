@@ -9,6 +9,8 @@ const createBookingSchema = z.object({
   serviceId: z.string().uuid(),
   startAt: z.string().datetime(),
   notes: z.string().optional(),
+  // Apenas admin pode definir outro utilizador
+  userId: z.string().uuid().optional(),
 });
 
 // GET - Listar marcações do utilizador (ou todas se for admin)
@@ -78,12 +80,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const { serviceId, startAt, notes } = parsed.data;
+    const { serviceId, startAt, notes, userId: requestedUserId } = parsed.data;
 
-    // Buscar o serviço para obter a duração
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-    });
+  // Admin deve indicar o cliente alvo
+  if (user.role === "ADMIN" && !requestedUserId) {
+    return NextResponse.json(
+      { error: "Selecione o cliente para esta marcação" },
+      { status: 400 }
+    );
+  }
+
+  // Buscar o serviço para obter a duração
+  const service = await prisma.service.findUnique({
+    where: { id: serviceId },
+  });
 
     if (!service) {
       return NextResponse.json(
@@ -133,11 +143,30 @@ export async function POST(req: Request) {
     // Gerar código único para a marcação
     const code = `MRC${Date.now().toString().slice(-8)}`;
 
+    // Determinar utilizador da marcação (admin pode criar para outro utilizador)
+    const bookingUserId =
+      user.role === "ADMIN" && requestedUserId ? requestedUserId : user.id;
+
+    // Validar utilizador alvo se admin definir userId
+    if (user.role === "ADMIN" && requestedUserId) {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: requestedUserId },
+        select: { id: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: "Utilizador selecionado não existe" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Criar marcação
     const booking = await prisma.booking.create({
       data: {
         code,
-        userId: user.id,
+        userId: bookingUserId,
         serviceId,
         startAt: startDate,
         endAt: endDate,

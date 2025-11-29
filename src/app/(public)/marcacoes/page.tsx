@@ -1,8 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  Calendar,
+  dateFnsLocalizer,
+  type SlotInfo,
+} from "react-big-calendar";
+import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
+import {
+  addMinutes,
+  differenceInMinutes,
+  format,
+  getDay,
+  parse,
+  startOfWeek,
+  addWeeks,
+} from "date-fns";
+import { pt } from "date-fns/locale";
 
 interface Service {
   id: string;
@@ -31,6 +47,26 @@ interface AvailableSlot {
   endTime: string;
 }
 
+type CalendarEvent = {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  status?: string;
+  durationMin?: number;
+  isDraft?: boolean;
+};
+
+const locales = { "pt-PT": pt, pt };
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+const DragAndDropCalendar = withDragAndDrop(Calendar);
+
 export default function MarcacoesPage() {
   const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
@@ -47,6 +83,8 @@ export default function MarcacoesPage() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [notes, setNotes] = useState("");
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [draftEvent, setDraftEvent] = useState<CalendarEvent | null>(null);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   useEffect(() => {
     fetchData();
@@ -106,7 +144,8 @@ export default function MarcacoesPage() {
 
   const handleCreateBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSlot) {
+    const slotToUse = draftEvent ? draftEvent.start.toISOString() : selectedSlot;
+    if (!slotToUse) {
       setError("Por favor selecione um horário");
       return;
     }
@@ -121,7 +160,7 @@ export default function MarcacoesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId: selectedService,
-          startAt: selectedSlot,
+          startAt: slotToUse,
           notes: notes || undefined,
         }),
       });
@@ -136,6 +175,7 @@ export default function MarcacoesPage() {
       setSelectedDate("");
       setSelectedSlot("");
       setNotes("");
+      setDraftEvent(null);
       fetchData();
     } catch (err: any) {
       setError(err.message);
@@ -178,6 +218,132 @@ export default function MarcacoesPage() {
       </span>
     );
   };
+
+  const calendarEvents = useMemo(() => {
+    const baseEvents: CalendarEvent[] = myBookings.map((booking) => ({
+      id: booking.id,
+      title: booking.service.name,
+      start: new Date(booking.startAt),
+      end: new Date(booking.endAt),
+      status: booking.status,
+      durationMin: booking.service.durationMin,
+    }));
+
+    return draftEvent ? [...baseEvents, draftEvent] : baseEvents;
+  }, [myBookings, draftEvent]);
+
+  const eventPropGetter = (event: CalendarEvent) => {
+    if (event.isDraft) {
+      return {
+        style: {
+          backgroundColor: "rgba(22, 163, 74, 0.12)",
+          color: "#0f172a",
+          border: "1px dashed #16a34a",
+          borderRadius: "10px",
+        },
+      };
+    }
+
+    const colors: Record<string, string> = {
+      CONFIRMED: "#16a34a",
+      PENDING: "#f59e0b",
+      CANCELLED: "#9ca3af",
+      NO_SHOW: "#ef4444",
+    };
+
+    const background = colors[event.status || "PENDING"] || "#16a34a";
+
+    return {
+      style: {
+        backgroundColor: background,
+        color: "#fff",
+        borderRadius: "12px",
+        border: "1px solid rgba(0,0,0,0.05)",
+      },
+    };
+  };
+
+  const updateDraftEvent = (start: Date, duration: number) => {
+    const end = addMinutes(start, duration);
+    setDraftEvent((prev) => ({
+      id: "draft",
+      title: prev?.title || "Nova marcação",
+      start,
+      end,
+      isDraft: true,
+      durationMin: duration,
+    }));
+    setSelectedDate(start.toISOString().split("T")[0]);
+    setSelectedSlot(start.toISOString());
+    setSuccess("");
+    setError("");
+  };
+
+  const handleSlotSelect = (slot: SlotInfo) => {
+    const earliest = new Date();
+    earliest.setHours(0, 0, 0, 0);
+    earliest.setDate(earliest.getDate() + 1);
+
+    if (slot.start < earliest) {
+      setError("Escolha um horário a partir de amanhã.");
+      return;
+    }
+
+    const service = services.find((s) => s.id === selectedService);
+    const selectionMinutes = Math.max(
+      differenceInMinutes(slot.end ?? slot.start, slot.start),
+      30
+    );
+    const duration = service?.durationMin || selectionMinutes;
+    updateDraftEvent(slot.start, duration);
+    setDraftEvent((prev) => ({
+      ...(prev || {}),
+      title: service ? service.name : "Nova marcação",
+      status: "PENDING",
+      durationMin: duration,
+    }));
+  };
+
+  const handleDraftMove = ({
+    event,
+    start,
+    end,
+  }: {
+    event: CalendarEvent;
+    start: Date;
+    end: Date;
+  }) => {
+    if (!event.isDraft) return;
+
+    const earliest = new Date();
+    earliest.setHours(0, 0, 0, 0);
+    earliest.setDate(earliest.getDate() + 1);
+
+    if (start < earliest) {
+      setError("Escolha um horário a partir de amanhã.");
+      return;
+    }
+
+    const baseDuration =
+      event.durationMin ||
+      Math.max(differenceInMinutes(event.end, event.start), 30);
+    const duration = end
+      ? Math.max(differenceInMinutes(end, start), 15)
+      : baseDuration;
+    updateDraftEvent(start, duration);
+  };
+
+  const businessDayStart = useMemo(() => {
+    const date = new Date();
+    date.setHours(8, 0, 0, 0);
+    return date;
+  }, []);
+
+  const businessDayEnd = useMemo(() => {
+    const date = new Date();
+    date.setHours(21, 0, 0, 0);
+    return date;
+  }, []);
 
   if (loading) {
     return (
@@ -226,6 +392,105 @@ export default function MarcacoesPage() {
           {/* Criar Nova Marcação */}
           <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Nova Marcação</h2>
+
+              <div className="mb-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Calendário semanal
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Arraste para escolher o horário e ajuste o bloco para aumentar/diminuir.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                    >
+                      ← Semana anterior
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarDate(new Date())}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                    >
+                      Hoje
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
+                    >
+                      Próxima semana →
+                    </button>
+                  </div>
+                </div>
+                <div className="border border-gray-200 rounded-2xl overflow-hidden shadow">
+                  <DragAndDropCalendar
+                    localizer={localizer}
+                    events={calendarEvents}
+                    defaultView="week"
+                    date={calendarDate}
+                    views={["week", "day"]}
+                    step={30}
+                    timeslots={2}
+                    selectable
+                    resizable
+                    popup
+                    style={{ height: 420 }}
+                    onSelectSlot={handleSlotSelect}
+                    onEventDrop={handleDraftMove}
+                    onEventResize={handleDraftMove}
+                    onNavigate={(date) => setCalendarDate(date)}
+                    eventPropGetter={eventPropGetter}
+                    draggableAccessor={(event) => !!event.isDraft}
+                    min={businessDayStart}
+                    max={businessDayEnd}
+                  messages={{
+                    week: "Semana",
+                    day: "Dia",
+                    previous: "Anterior",
+                    next: "Seguinte",
+                    today: "Hoje",
+                    month: "Mês",
+                  }}
+                />
+              </div>
+              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-700">
+                {draftEvent ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {format(draftEvent.start, "EEEE, dd MMMM", { locale: pt })}
+                      </p>
+                      <p>
+                        {format(draftEvent.start, "HH:mm")} •{" "}
+                        {draftEvent.durationMin ||
+                          differenceInMinutes(draftEvent.end, draftEvent.start)}{" "}
+                        min
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setDraftEvent(null);
+                        setSelectedSlot("");
+                        setSelectedDate("");
+                      }}
+                      className="text-red-600 hover:text-red-700 text-xs font-semibold"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                ) : (
+                  <p>
+                    Selecione ou arraste um bloco no calendário para marcar; a duração segue o
+                    serviço escolhido.
+                  </p>
+                )}
+              </div>
+            </div>
 
             <form onSubmit={handleCreateBooking} className="space-y-6">
               {/* Selecionar Serviço */}
@@ -276,11 +541,25 @@ export default function MarcacoesPage() {
                     </div>
                   ) : availableSlots.length > 0 ? (
                     <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                      {availableSlots.map((slot, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setSelectedSlot(slot.startAt)}
+                  {availableSlots.map((slot, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        const selectedStart = new Date(slot.startAt);
+                        const service = services.find((s) => s.id === selectedService);
+                        const duration = service?.durationMin || 30;
+                        setSelectedSlot(slot.startAt);
+                        setSelectedDate(slot.startAt.split("T")[0]);
+                        setDraftEvent({
+                          id: "draft",
+                          title: service ? service.name : "Nova marcação",
+                          start: selectedStart,
+                          end: addMinutes(selectedStart, duration),
+                          isDraft: true,
+                          durationMin: duration,
+                        });
+                      }}
                           className={`px-4 py-2 rounded-lg border-2 font-semibold transition ${
                             selectedSlot === slot.startAt
                               ? "bg-green-700 text-white border-green-700"
@@ -315,7 +594,7 @@ export default function MarcacoesPage() {
 
               <button
                 type="submit"
-                disabled={creating || !selectedSlot}
+                disabled={creating || (!selectedSlot && !draftEvent)}
                 className="w-full bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? "A criar..." : "Criar Marcação"}
