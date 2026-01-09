@@ -31,7 +31,18 @@ export async function POST(req: Request) {
       { expiresIn: "1d" }
     );
 
-    const response = NextResponse.json({ success: true, role: user.role });
+    const response = NextResponse.json({
+      success: true,
+      role: user.role,
+      emailVerified: user.emailVerified,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        emailVerified: user.emailVerified,
+      },
+    });
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -39,7 +50,7 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24, // 1 dia
     });
 
-    console.log(`✅ Login bem-sucedido (${user.email}) — role: ${user.role}`);
+    console.log(`✅ Login bem-sucedido (${user.email}) — role: ${user.role}, verificado: ${user.emailVerified}`);
 
     return response;
   } catch (err) {

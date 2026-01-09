@@ -8,19 +8,23 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         Role      @default(CLIENT)
-  phone        String?
-  birthDate    DateTime?
-  profession   String?
-  addressCity  String?
-  addressPost  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  bookings     Booking[]
+  id                 String     @id @default(uuid())
+  email              String     @unique
+  passwordHash       String
+  name               String
+  role               Role       @default(CLIENT)
+  phone              String?
+  birthDate          DateTime?
+  profession         String?
+  addressCity        String?
+  addressPost        String?
+  clientType         ClientType @default(NORMAL)
+  emailVerified      Boolean    @default(false)
+  verificationToken  String?    @unique
+  verificationExpiry DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  bookings           Booking[]
 }
 
 model Practitioner {
@@ -99,9 +103,54 @@ enum Role {
   ADMIN
 }
 
+enum ClientType {
+  NORMAL
+  PREMIUM
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
   NO_SHOW
+}
+
+enum EmailCampaignType {
+  PROMOCAO
+  FERIAS
+  HORARIOS
+  ANIVERSARIO
+  PERSONALIZADO
+}
+
+model EmailCampaign {
+  id          String            @id @default(uuid())
+  subject     String
+  type        EmailCampaignType
+  htmlContent String
+  flyerUrl    String?
+  targetType  ClientType?       // null = todos os clientes
+  sentTo      Int               @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// Configuração do email automático de aniversário
+// Usa singleton pattern - apenas 1 registo (id = "birthday-config")
+model BirthdayEmailConfig {
+  id              String   @id @default("birthday-config")
+  enabled         Boolean  @default(true)
+  // Texto da oferta (ex: "10% de desconto", "Massagem grátis", "Vale de 15€")
+  offerText       String   @default("10% de desconto na sua próxima consulta")
+  // Código promocional (opcional)
+  promoCode       String?  @default("ANIVERSARIO10")
+  // Validade da oferta em dias
+  offerValidDays  Int      @default(30)
+  // URL da imagem/flyer de aniversário (Cloudinary)
+  imageUrl        String?
+  // Texto adicional personalizado (opcional)
+  customMessage   String?
+  // Última atualização
+  updatedAt       DateTime @updatedAt
 }

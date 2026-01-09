@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Calendar,
@@ -67,14 +67,25 @@ const localizer = dateFnsLocalizer({
 });
 const DragAndDropCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
-export default function MarcacoesPage() {
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+}
+
+function MarcacoesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [services, setServices] = useState<Service[]>([]);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
 
   // Formulário de nova marcação
   const [selectedService, setSelectedService] = useState("");
@@ -87,8 +98,32 @@ export default function MarcacoesPage() {
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   useEffect(() => {
+    // Verificar autenticação e status de verificação de email
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      router.push("/auth/login?redirect=/marcacoes");
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      if (!parsedUser.emailVerified) {
+        setEmailNotVerified(true);
+      }
+    } catch {
+      router.push("/auth/login?redirect=/marcacoes");
+      return;
+    }
+
+    // Verificar se há serviceId na URL
+    const serviceId = searchParams.get("serviceId");
+    if (serviceId) {
+      setSelectedService(serviceId);
+    }
+
     fetchData();
-  }, []);
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (selectedService && selectedDate) {
@@ -280,6 +315,12 @@ export default function MarcacoesPage() {
   };
 
   const handleSlotSelect = (slot: SlotInfo) => {
+    // Obrigar a selecionar serviço primeiro
+    if (!selectedService) {
+      setError("Por favor, selecione primeiro um serviço.");
+      return;
+    }
+
     const earliest = new Date();
     earliest.setHours(0, 0, 0, 0);
     earliest.setDate(earliest.getDate() + 1);
@@ -290,17 +331,16 @@ export default function MarcacoesPage() {
     }
 
     const service = services.find((s) => s.id === selectedService);
-    const selectionMinutes = Math.max(
-      differenceInMinutes(slot.end ?? slot.start, slot.start),
-      30
-    );
-    const duration = service?.durationMin || selectionMinutes;
+    if (!service) return;
+
+    // Usar sempre a duração do serviço selecionado
+    const duration = service.durationMin;
     updateDraftEvent(slot.start, duration);
     setDraftEvent((prev) =>
       prev
         ? {
             ...prev,
-            title: service ? service.name : "Nova marcação",
+            title: service.name,
             status: "PENDING",
             durationMin: duration,
           }
@@ -311,7 +351,6 @@ export default function MarcacoesPage() {
   const handleDraftMove = ({
     event,
     start,
-    end,
   }: {
     event: CalendarEvent;
     start: string | Date;
@@ -320,7 +359,6 @@ export default function MarcacoesPage() {
     if (!event.isDraft) return;
 
     const startDate = typeof start === "string" ? new Date(start) : start;
-    const endDate = typeof end === "string" ? new Date(end) : end;
 
     const earliest = new Date();
     earliest.setHours(0, 0, 0, 0);
@@ -331,12 +369,9 @@ export default function MarcacoesPage() {
       return;
     }
 
-    const baseDuration =
-      event.durationMin ||
-      Math.max(differenceInMinutes(event.end, event.start), 30);
-    const duration = endDate
-      ? Math.max(differenceInMinutes(endDate, startDate), 15)
-      : baseDuration;
+    // Manter sempre a duração fixa do serviço (não permitir redimensionar)
+    const service = services.find((s) => s.id === selectedService);
+    const duration = service?.durationMin || event.durationMin || 30;
     updateDraftEvent(startDate, duration);
   };
 
@@ -357,6 +392,42 @@ export default function MarcacoesPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
       </div>
+    );
+  }
+
+  // Se email não verificado, mostrar aviso
+  if (emailNotVerified) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-20">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Email Não Verificado</h1>
+          <p className="text-gray-600 mb-6">
+            Para fazer marcações, precisa primeiro de verificar o seu email.
+            Verifique a sua caixa de entrada e clique no link de confirmação.
+          </p>
+          {user && (
+            <p className="text-sm text-gray-500 mb-4">
+              Email: <strong>{user.email}</strong>
+            </p>
+          )}
+          <div className="space-y-3">
+            <Link
+              href="/dashboard"
+              className="block w-full bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition"
+            >
+              Ir para Dashboard
+            </Link>
+            <p className="text-sm text-gray-500">
+              Não recebeu o email? Use o botão na barra de navegação para reenviar.
+            </p>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -407,7 +478,9 @@ export default function MarcacoesPage() {
                       Calendário semanal
                     </p>
                     <p className="text-xs text-gray-600">
-                      Arraste para escolher o horário e ajuste o bloco para aumentar/diminuir.
+                      {selectedService
+                        ? "Clique no calendário para escolher o horário. Pode arrastar o bloco para ajustar."
+                        : "Selecione primeiro um serviço abaixo para poder escolher o horário."}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
@@ -443,13 +516,12 @@ export default function MarcacoesPage() {
                     views={["week", "day"]}
                     step={30}
                     timeslots={2}
-                    selectable
-                    resizable
+                    selectable={!!selectedService}
+                    resizable={false}
                     popup
                     style={{ height: 420 }}
                     onSelectSlot={handleSlotSelect}
                     onEventDrop={handleDraftMove}
-                    onEventResize={handleDraftMove}
                     onNavigate={(date) => setCalendarDate(date)}
                     eventPropGetter={eventPropGetter}
                     draggableAccessor={(event) => !!event.isDraft}
@@ -507,7 +579,13 @@ export default function MarcacoesPage() {
                 </label>
                 <select
                   value={selectedService}
-                  onChange={(e) => setSelectedService(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedService(e.target.value);
+                    // Limpar draft e slot ao mudar de serviço para recalcular duração
+                    setDraftEvent(null);
+                    setSelectedSlot("");
+                    setError("");
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
                 >
@@ -725,5 +803,19 @@ export default function MarcacoesPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function MarcacoesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+        </div>
+      }
+    >
+      <MarcacoesContent />
+    </Suspense>
   );
 }

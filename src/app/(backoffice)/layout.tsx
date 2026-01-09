@@ -50,6 +50,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     { href: "/servicos-bo", label: "Serviços", icon: "💆" },
     { href: "/marcacoes-bo", label: "Marcações", icon: "📅" },
     { href: "/clientes-bo", label: "Clientes", icon: "👥" },
+    { href: "/emails-bo", label: "Emails", icon: "📧" },
     { href: "/contactos-bo", label: "Contactos", icon: "✉️" },
   ];
 

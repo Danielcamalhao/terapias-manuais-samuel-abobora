@@ -8,6 +8,9 @@ interface User {
   email: string;
   phone: string | null;
   role: "CLIENT" | "ADMIN";
+  clientType: "NORMAL" | "PREMIUM";
+  emailVerified: boolean;
+  birthDate: string | null;
   createdAt: string;
   _count?: {
     bookings: number;
@@ -21,6 +24,7 @@ export default function ClientesBackoffice() {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "CLIENT" | "ADMIN">("ALL");
+  const [clientTypeFilter, setClientTypeFilter] = useState<"ALL" | "NORMAL" | "PREMIUM">("ALL");
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -30,6 +34,8 @@ export default function ClientesBackoffice() {
     email: "",
     phone: "",
     role: "CLIENT" as "CLIENT" | "ADMIN",
+    clientType: "NORMAL" as "NORMAL" | "PREMIUM",
+    birthDate: "",
     password: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +46,7 @@ export default function ClientesBackoffice() {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter, clientTypeFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -64,6 +70,11 @@ export default function ClientesBackoffice() {
       filtered = filtered.filter((u) => u.role === roleFilter);
     }
 
+    // Filter by client type
+    if (clientTypeFilter !== "ALL") {
+      filtered = filtered.filter((u) => u.clientType === clientTypeFilter);
+    }
+
     // Filter by search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -85,6 +96,8 @@ export default function ClientesBackoffice() {
       email: "",
       phone: "",
       role: "CLIENT",
+      clientType: "NORMAL",
+      birthDate: "",
       password: "",
     });
     setShowModal(true);
@@ -97,6 +110,8 @@ export default function ClientesBackoffice() {
       email: user.email,
       phone: user.phone || "",
       role: user.role,
+      clientType: user.clientType || "NORMAL",
+      birthDate: user.birthDate ? user.birthDate.split("T")[0] : "",
       password: "",
     });
     setShowModal(true);
@@ -110,6 +125,8 @@ export default function ClientesBackoffice() {
       email: "",
       phone: "",
       role: "CLIENT",
+      clientType: "NORMAL",
+      birthDate: "",
       password: "",
     });
   };
@@ -125,11 +142,13 @@ export default function ClientesBackoffice() {
 
       const method = editingUser ? "PUT" : "POST";
 
-      const body: any = {
+      const body: Record<string, unknown> = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone || null,
         role: formData.role,
+        clientType: formData.clientType,
+        birthDate: formData.birthDate || null,
       };
 
       // Only include password if it's provided
@@ -180,6 +199,25 @@ export default function ClientesBackoffice() {
     }
   };
 
+  const handleToggleClientType = async (user: User) => {
+    try {
+      const newType = user.clientType === "PREMIUM" ? "NORMAL" : "PREMIUM";
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientType: newType }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Erro ao atualizar tipo de cliente");
+      }
+
+      await fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -197,7 +235,7 @@ export default function ClientesBackoffice() {
             Gestão de Clientes
           </h1>
           <p className="text-gray-600">
-            Gerir utilizadores e permissões do sistema
+            Gerir utilizadores, permissões e categorias de clientes
           </p>
         </div>
 
@@ -224,15 +262,29 @@ export default function ClientesBackoffice() {
 
             {/* Role Filter */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Tipo:</label>
+              <label className="text-sm font-medium text-gray-700">Função:</label>
               <select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as any)}
+                onChange={(e) => setRoleFilter(e.target.value as "ALL" | "CLIENT" | "ADMIN")}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="ALL">Todos</option>
                 <option value="CLIENT">Clientes</option>
                 <option value="ADMIN">Administradores</option>
+              </select>
+            </div>
+
+            {/* Client Type Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Categoria:</label>
+              <select
+                value={clientTypeFilter}
+                onChange={(e) => setClientTypeFilter(e.target.value as "ALL" | "NORMAL" | "PREMIUM")}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="ALL">Todos</option>
+                <option value="NORMAL">Normal</option>
+                <option value="PREMIUM">Premium</option>
               </select>
             </div>
 
@@ -246,7 +298,7 @@ export default function ClientesBackoffice() {
           </div>
 
           {/* Stats */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex gap-6 text-sm">
+          <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-6 text-sm">
             <div>
               <span className="text-gray-600">Total:</span>
               <span className="ml-2 font-semibold text-gray-900">{users.length}</span>
@@ -258,9 +310,21 @@ export default function ClientesBackoffice() {
               </span>
             </div>
             <div>
-              <span className="text-gray-600">Administradores:</span>
-              <span className="ml-2 font-semibold text-gray-900">
-                {users.filter((u) => u.role === "ADMIN").length}
+              <span className="text-gray-600">Premium:</span>
+              <span className="ml-2 font-semibold text-purple-700">
+                {users.filter((u) => u.clientType === "PREMIUM").length}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Normal:</span>
+              <span className="ml-2 font-semibold text-blue-700">
+                {users.filter((u) => u.clientType === "NORMAL").length}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Verificados:</span>
+              <span className="ml-2 font-semibold text-green-700">
+                {users.filter((u) => u.emailVerified).length}
               </span>
             </div>
           </div>
@@ -284,13 +348,16 @@ export default function ClientesBackoffice() {
                       Contacto
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
+                      Categoria
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Marcações
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registado
+                      Aniversário
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ações
@@ -302,12 +369,25 @@ export default function ClientesBackoffice() {
                     <tr key={user.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-lg flex items-center justify-center text-white font-bold mr-3">
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold mr-3 ${
+                              user.role === "ADMIN"
+                                ? "bg-gradient-to-br from-purple-600 to-purple-500"
+                                : user.clientType === "PREMIUM"
+                                ? "bg-gradient-to-br from-yellow-500 to-orange-500"
+                                : "bg-gradient-to-br from-green-600 to-emerald-500"
+                            }`}
+                          >
                             {user.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">
                               {user.name}
+                              {user.role === "ADMIN" && (
+                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                  Admin
+                                </span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">{user.email}</div>
                           </div>
@@ -319,21 +399,45 @@ export default function ClientesBackoffice() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                            user.role === "ADMIN"
-                              ? "bg-purple-100 text-purple-800"
+                        <button
+                          onClick={() => handleToggleClientType(user)}
+                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full cursor-pointer transition hover:opacity-80 ${
+                            user.clientType === "PREMIUM"
+                              ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white"
                               : "bg-blue-100 text-blue-800"
                           }`}
+                          title="Clique para alternar"
                         >
-                          {user.role === "ADMIN" ? "Admin" : "Cliente"}
-                        </span>
+                          {user.clientType === "PREMIUM" ? "⭐ Premium" : "Normal"}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {user.emailVerified ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            Verificado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            Pendente
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {user._count?.bookings || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString("pt-PT")}
+                        {user.birthDate
+                          ? new Date(user.birthDate).toLocaleDateString("pt-PT", {
+                              day: "2-digit",
+                              month: "2-digit",
+                            })
+                          : "—"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -361,7 +465,7 @@ export default function ClientesBackoffice() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 {editingUser ? "Editar Utilizador" : "Novo Utilizador"}
@@ -409,19 +513,50 @@ export default function ClientesBackoffice() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo *
+                  Data de Nascimento
                 </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value as "CLIENT" | "ADMIN" })
-                  }
+                <input
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="CLIENT">Cliente</option>
-                  <option value="ADMIN">Administrador</option>
-                </select>
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Função *
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value as "CLIENT" | "ADMIN" })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="CLIENT">Cliente</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categoria *
+                  </label>
+                  <select
+                    value={formData.clientType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, clientType: e.target.value as "NORMAL" | "PREMIUM" })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="NORMAL">Normal</option>
+                    <option value="PREMIUM">Premium</option>
+                  </select>
+                </div>
               </div>
 
               <div>

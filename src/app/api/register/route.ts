@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendVerificationEmail } from "@/lib/email";
 import bcrypt from "bcrypt";
 import { z } from "zod";
+import { randomUUID } from "crypto";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -40,6 +42,10 @@ export async function POST(req: Request) {
     // Hash da password
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Gerar token de verificação (expira em 24 horas)
+    const verificationToken = randomUUID();
+    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
     // Criar utilizador
     const user = await prisma.user.create({
       data: {
@@ -47,7 +53,10 @@ export async function POST(req: Request) {
         email,
         phone: phone || null,
         passwordHash,
-        role: "CLIENT", // Por defeito, novos registos são clientes
+        role: "CLIENT",
+        emailVerified: false,
+        verificationToken,
+        verificationExpiry,
       },
       select: {
         id: true,
@@ -57,10 +66,20 @@ export async function POST(req: Request) {
       },
     });
 
+    // Enviar email de boas-vindas com link de verificação
+    const emailResult = await sendVerificationEmail(email, name, verificationToken);
+    if (!emailResult.success) {
+      console.error("Erro ao enviar email de verificação:", emailResult.error);
+    }
+
     console.log(`✅ Novo utilizador registado: ${email}`);
 
     return NextResponse.json(
-      { message: "Conta criada com sucesso", user },
+      {
+        message: "Conta criada com sucesso. Verifique o seu email para ativar a conta.",
+        user,
+        emailSent: emailResult.success,
+      },
       { status: 201 }
     );
   } catch (error) {

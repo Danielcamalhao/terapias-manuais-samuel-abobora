@@ -10,8 +10,10 @@ const createUserSchema = z.object({
   name: z.string().min(2),
   password: z.string().min(4),
   role: z.enum(["ADMIN", "CLIENT"]).default("CLIENT"),
+  clientType: z.enum(["NORMAL", "PREMIUM"]).default("NORMAL"),
   phone: z.string().optional().nullable(),
   addressCity: z.string().optional().nullable(),
+  birthDate: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -26,8 +28,19 @@ export async function GET() {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
-      id: true, email: true, name: true, role: true,
-      phone: true, addressCity: true, createdAt: true,
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      clientType: true,
+      emailVerified: true,
+      phone: true,
+      birthDate: true,
+      addressCity: true,
+      createdAt: true,
+      _count: {
+        select: { bookings: true },
+      },
     },
   });
   return NextResponse.json(users);
@@ -47,12 +60,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, name, password, role, phone, addressCity } = parsed.data;
+  const { email, name, password, role, clientType, phone, addressCity, birthDate } = parsed.data;
   const passwordHash = await bcrypt.hash(password, 10);
 
   const created = await prisma.user.create({
-    data: { email, name, passwordHash, role, phone, addressCity },
-    select: { id: true, email: true, name: true, role: true, phone: true, addressCity: true, createdAt: true },
+    data: {
+      email,
+      name,
+      passwordHash,
+      role,
+      clientType,
+      phone,
+      addressCity,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      emailVerified: true, // Criados por admin já são verificados
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      clientType: true,
+      emailVerified: true,
+      phone: true,
+      birthDate: true,
+      addressCity: true,
+      createdAt: true,
+    },
   });
 
   return NextResponse.json(created, { status: 201 });

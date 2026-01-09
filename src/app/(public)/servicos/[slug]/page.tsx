@@ -2,17 +2,19 @@ import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import AgendarButton from "@/components/AgendarButton";
 
 interface ServicePageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 // Revalida a cada 60s
 export const revalidate = 60;
 
 export default async function ServiceDetailPage({ params }: ServicePageProps) {
+  const { slug } = await params;
   const service = await prisma.service.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
   });
 
   if (!service || !service.active) {
@@ -51,12 +53,7 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
 
           {/* Botões */}
           <div className="flex gap-4">
-            <Link
-              href="/contactos"
-              className="bg-green-700 text-white px-6 py-2 rounded-md font-semibold hover:bg-green-800 transition"
-            >
-              Agendar Sessão
-            </Link>
+            <AgendarButton serviceId={service!.id} />
             <Link
               href="/servicos"
               className="text-green-700 hover:underline font-medium flex items-center"

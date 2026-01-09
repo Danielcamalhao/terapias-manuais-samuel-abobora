@@ -14,7 +14,10 @@ function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
-      setSuccess("Conta criada com sucesso! Faça login para continuar.");
+      setSuccess("Conta criada com sucesso! Verifique o seu email para ativar a conta.");
+    }
+    if (searchParams.get("verified") === "true") {
+      setSuccess("Email verificado com sucesso! Já pode fazer login.");
     }
   }, [searchParams]);
 
@@ -33,9 +36,19 @@ function LoginForm() {
       if (res.ok) {
         const data = await res.json();
 
-        // Redirecionar conforme o role
+        // Guardar dados do utilizador no localStorage
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+
+        // Verificar se há redirect pendente
+        const redirectUrl = searchParams.get("redirect");
+
+        // Redirecionar conforme o role ou para URL pendente
         if (data.role === "ADMIN") {
           router.push("/dashboard-bo");
+        } else if (redirectUrl) {
+          router.push(redirectUrl);
         } else {
           router.push("/dashboard");
         }

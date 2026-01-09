@@ -9,12 +9,14 @@ const updateSchema = z.object({
   email: z.string().email().optional(),
   name: z.string().min(2).optional(),
   role: z.enum(["ADMIN", "CLIENT"]).optional(),
+  clientType: z.enum(["NORMAL", "PREMIUM"]).optional(),
   phone: z.string().optional().nullable(),
   addressCity: z.string().optional().nullable(),
-  password: z.string().min(4).optional(), // se quiseres alterar a password
+  birthDate: z.string().optional().nullable(),
+  password: z.string().min(4).optional(),
 });
 
-export async function PATCH(
+export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -30,25 +32,50 @@ export async function PATCH(
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
 
-  const data: any = { ...parsed.data };
-  if (data.password) {
-    data.passwordHash = await bcrypt.hash(data.password, 10);
-    delete data.password;
-  }
+  const data: Record<string, unknown> = {};
 
-  // impedir apagar/alterar "super admin" opcionalmente:
-  // if (id === "ID-DO-SUPER-ADMIN") ...
+  if (parsed.data.email !== undefined) data.email = parsed.data.email;
+  if (parsed.data.name !== undefined) data.name = parsed.data.name;
+  if (parsed.data.role !== undefined) data.role = parsed.data.role;
+  if (parsed.data.clientType !== undefined) data.clientType = parsed.data.clientType;
+  if (parsed.data.phone !== undefined) data.phone = parsed.data.phone;
+  if (parsed.data.addressCity !== undefined) data.addressCity = parsed.data.addressCity;
+  if (parsed.data.birthDate !== undefined) {
+    data.birthDate = parsed.data.birthDate ? new Date(parsed.data.birthDate) : null;
+  }
+  if (parsed.data.password) {
+    data.passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  }
 
   const updated = await prisma.user.update({
     where: { id },
     data,
-    select: { id: true, email: true, name: true, role: true, phone: true, addressCity: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      clientType: true,
+      emailVerified: true,
+      phone: true,
+      birthDate: true,
+      addressCity: true,
+      createdAt: true,
+    },
   });
 
   return NextResponse.json(updated);
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // Reutilizar PUT para PATCH
+  return PUT(req, { params });
 }
 
 export async function DELETE(
@@ -64,7 +91,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // impedir apagar o próprio admin autenticado (opcional mas recomendado)
+  // impedir apagar o próprio admin autenticado
   if (user.id === id) {
     return NextResponse.json({ error: "Não podes apagar a tua própria conta." }, { status: 400 });
   }
