@@ -32,9 +32,9 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
 
+      if (res.ok) {
         // Guardar dados do utilizador no localStorage
         if (data.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
@@ -44,22 +44,23 @@ function LoginForm() {
         const redirectUrl = searchParams.get("redirect");
 
         // Redirecionar conforme o role ou para URL pendente
-        // Usar window.location para garantir que os cookies são carregados corretamente
+        // Usar window.location.replace para navegação completa
         if (data.role === "ADMIN") {
-          window.location.href = "/dashboard-bo";
+          window.location.replace("/dashboard-bo");
         } else if (redirectUrl) {
-          window.location.href = redirectUrl;
+          window.location.replace(redirectUrl);
         } else {
-          window.location.href = "/dashboard";
+          window.location.replace("/dashboard");
         }
+        // Não fazer mais nada após o redirect
+        return;
       } else {
-        const err = await res.json();
-        setError(err.error || "Falha no login.");
+        setError(data.error || "Falha no login.");
+        setLoading(false);
       }
     } catch (err) {
       console.error("Erro no login:", err);
       setError("Erro inesperado. Tente novamente.");
-    } finally {
       setLoading(false);
     }
   };
