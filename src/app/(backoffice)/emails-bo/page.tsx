@@ -57,6 +57,7 @@ export default function EmailsBackoffice() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Form state - Nova Campanha
@@ -225,6 +226,53 @@ export default function EmailsBackoffice() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de ficheiro
+    if (!file.type.startsWith("image/")) {
+      setMessage({ type: "error", text: "Por favor, selecione uma imagem válida." });
+      return;
+    }
+
+    // Validar tamanho (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: "error", text: "A imagem deve ter no máximo 5MB." });
+      return;
+    }
+
+    setUploading(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setBirthdayConfig({ ...birthdayConfig, imageUrl: data.url });
+        setMessage({ type: "success", text: "Imagem carregada com sucesso!" });
+      } else {
+        setMessage({ type: "error", text: data.error || "Erro ao carregar imagem" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Erro ao carregar imagem" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setBirthdayConfig({ ...birthdayConfig, imageUrl: null });
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -743,33 +791,82 @@ export default function EmailsBackoffice() {
                   </p>
                 </div>
 
-                {/* URL da Imagem */}
+                {/* Upload de Imagem */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL da Imagem/Flyer (opcional)
+                    Imagem/Flyer de Aniversário (opcional)
                   </label>
-                  <input
-                    type="url"
-                    value={birthdayConfig.imageUrl || ""}
-                    onChange={(e) => setBirthdayConfig({ ...birthdayConfig, imageUrl: e.target.value || null })}
-                    placeholder="https://res.cloudinary.com/.../imagem-aniversario.jpg"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Cole o URL de uma imagem do Cloudinary ou outra fonte
-                  </p>
-                  {birthdayConfig.imageUrl && (
-                    <div className="mt-2">
-                      <img
-                        src={birthdayConfig.imageUrl}
-                        alt="Preview"
-                        className="max-w-xs rounded-lg border border-gray-200"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
+
+                  {birthdayConfig.imageUrl ? (
+                    <div className="space-y-3">
+                      <div className="relative inline-block">
+                        <img
+                          src={birthdayConfig.imageUrl}
+                          alt="Imagem de aniversário"
+                          className="max-w-sm rounded-lg border border-gray-200 shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition shadow-lg"
+                          title="Remover imagem"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-sm text-green-600 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Imagem carregada
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploading}
+                        className="hidden"
+                        id="birthday-image-upload"
                       />
+                      <label
+                        htmlFor="birthday-image-upload"
+                        className={`cursor-pointer ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        {uploading ? (
+                          <div className="flex flex-col items-center">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-700 mb-3"></div>
+                            <p className="text-gray-600">A carregar imagem...</p>
+                          </div>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-12 h-12 mx-auto text-gray-400 mb-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <p className="text-gray-600 font-medium">Clique para carregar uma imagem</p>
+                            <p className="text-gray-400 text-sm mt-1">PNG, JPG ou GIF (máx. 5MB)</p>
+                          </>
+                        )}
+                      </label>
                     </div>
                   )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Esta imagem aparecerá no email de aniversário enviado aos clientes
+                  </p>
                 </div>
 
                 {/* Mensagem Personalizada */}
