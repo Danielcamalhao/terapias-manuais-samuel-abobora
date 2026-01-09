@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import type { Service } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 
 export const revalidate = 60; // Atualiza a cada 60s no modo produção
 
 export default async function ServicosPage() {
-  const servicos = await prisma.service.findMany({
+  const servicos: Service[] = await prisma.service.findMany({
     where: { active: true },
     orderBy: { createdAt: "desc" },
   });
