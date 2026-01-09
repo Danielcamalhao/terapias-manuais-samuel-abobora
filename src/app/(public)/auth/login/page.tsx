@@ -33,26 +33,30 @@ function LoginForm() {
       });
 
       const data = await res.json();
+      console.log("Login response:", { ok: res.ok, status: res.status, data });
 
       if (res.ok) {
         // Guardar dados do utilizador no localStorage
         if (data.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
+          console.log("User saved to localStorage");
         }
 
         // Verificar se há redirect pendente
         const redirectUrl = searchParams.get("redirect");
+        console.log("Redirect info:", { role: data.role, redirectUrl });
 
         // Redirecionar conforme o role ou para URL pendente
-        // Usar window.location.replace para navegação completa
         if (data.role === "ADMIN") {
-          window.location.replace("/dashboard-bo");
+          console.log("Redirecting to /dashboard-bo...");
+          window.location.href = "/dashboard-bo";
         } else if (redirectUrl) {
-          window.location.replace(redirectUrl);
+          console.log("Redirecting to:", redirectUrl);
+          window.location.href = redirectUrl;
         } else {
-          window.location.replace("/dashboard");
+          console.log("Redirecting to /dashboard...");
+          window.location.href = "/dashboard";
         }
-        // Não fazer mais nada após o redirect
         return;
       } else {
         setError(data.error || "Falha no login.");
