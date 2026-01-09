@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,12 +44,13 @@ function LoginForm() {
         const redirectUrl = searchParams.get("redirect");
 
         // Redirecionar conforme o role ou para URL pendente
+        // Usar window.location para garantir que os cookies são carregados corretamente
         if (data.role === "ADMIN") {
-          router.push("/dashboard-bo");
+          window.location.href = "/dashboard-bo";
         } else if (redirectUrl) {
-          router.push(redirectUrl);
+          window.location.href = redirectUrl;
         } else {
-          router.push("/dashboard");
+          window.location.href = "/dashboard";
         }
       } else {
         const err = await res.json();
