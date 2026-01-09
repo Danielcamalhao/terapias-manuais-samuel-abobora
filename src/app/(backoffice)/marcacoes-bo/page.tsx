@@ -77,7 +77,7 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
-const DragAndDropCalendar = withDragAndDrop(Calendar);
+const DragAndDropCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
 export default function MarcacoesBackoffice() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -373,9 +373,10 @@ export default function MarcacoesBackoffice() {
     start,
   }: {
     event: CalendarEvent;
-    start: Date;
+    start: string | Date;
   }) => {
-    if (updateEventPosition(event, start)) return;
+    const startDate = typeof start === "string" ? new Date(start) : start;
+    if (updateEventPosition(event, startDate)) return;
 
     setMovingBooking(true);
     setError("");
@@ -385,7 +386,7 @@ export default function MarcacoesBackoffice() {
       const res = await fetch(`/api/bookings/${event.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startAt: start.toISOString() }),
+        body: JSON.stringify({ startAt: startDate.toISOString() }),
       });
 
       if (!res.ok) {
@@ -408,10 +409,12 @@ export default function MarcacoesBackoffice() {
     end,
   }: {
     event: CalendarEvent;
-    start: Date;
-    end: Date;
+    start: string | Date;
+    end: string | Date;
   }) => {
-    if (updateEventPosition(event, start, end)) return;
+    const startDate = typeof start === "string" ? new Date(start) : start;
+    const endDate = typeof end === "string" ? new Date(end) : end;
+    if (updateEventPosition(event, startDate, endDate)) return;
 
     setMovingBooking(true);
     setError("");
@@ -421,7 +424,7 @@ export default function MarcacoesBackoffice() {
       const res = await fetch(`/api/bookings/${event.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startAt: start.toISOString() }),
+        body: JSON.stringify({ startAt: startDate.toISOString() }),
       });
 
       if (!res.ok) {
