@@ -442,6 +442,75 @@ export async function sendCustomCampaignEmail({
   return sendEmail({ to, subject, html });
 }
 
+// Template: Reset de Password (enviado pelo admin)
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string,
+  tempPassword: string,
+  resetToken: string
+) {
+  const resetUrl = `${APP_URL}/alterar-password?token=${resetToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #166534 0%, #14532d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">Terapias Manuais Samuel</h1>
+      </div>
+
+      <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+        <h2 style="color: #166534; margin-top: 0;">Olá ${name}!</h2>
+
+        <p>Foi gerada uma nova password temporária para a sua conta. Por favor, utilize esta password para aceder e definir uma nova password da sua escolha.</p>
+
+        <div style="background: white; border: 2px dashed #166534; border-radius: 10px; padding: 20px; margin: 25px 0; text-align: center;">
+          <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px;">A sua password temporária:</p>
+          <p style="font-size: 28px; font-weight: bold; color: #166534; margin: 0; letter-spacing: 3px; font-family: monospace;">${tempPassword}</p>
+        </div>
+
+        <p>Clique no botão abaixo para alterar a sua password:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background: #166534; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Alterar Password
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px;">Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+        <p style="color: #166534; font-size: 14px; word-break: break-all;">${resetUrl}</p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 0 8px 8px 0;">
+          <p style="color: #92400e; margin: 0; font-size: 14px;">
+            <strong>Importante:</strong> Este link expira em 24 horas. Após alterar a sua password, a password temporária deixará de funcionar.
+          </p>
+        </div>
+
+        <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
+          Se não solicitou esta alteração, por favor contacte-nos imediatamente.
+        </p>
+      </div>
+
+      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+        <p>&copy; ${new Date().getFullYear()} Terapias Manuais Samuel. Todos os direitos reservados.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Nova Password - Terapias Manuais Samuel",
+    html,
+  });
+}
+
 // Função auxiliar para enviar emails em massa
 export async function sendBulkEmails(
   recipients: Array<{ email: string; name: string }>,

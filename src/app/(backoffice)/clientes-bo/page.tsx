@@ -39,6 +39,8 @@ export default function ClientesBackoffice() {
     password: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -120,6 +122,7 @@ export default function ClientesBackoffice() {
   const closeModal = () => {
     setShowModal(false);
     setEditingUser(null);
+    setResetMessage(null);
     setFormData({
       name: "",
       email: "",
@@ -129,6 +132,35 @@ export default function ClientesBackoffice() {
       birthDate: "",
       password: "",
     });
+  };
+
+  const handleResetPassword = async () => {
+    if (!editingUser) return;
+
+    if (!confirm(`Tem a certeza que deseja gerar uma nova password para ${editingUser.name}? Uma password temporária será enviada por email.`)) {
+      return;
+    }
+
+    setResettingPassword(true);
+    setResetMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${editingUser.id}/reset-password`, {
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setResetMessage({ type: "success", text: data.message });
+      } else {
+        setResetMessage({ type: "error", text: data.error || "Erro ao enviar email" });
+      }
+    } catch {
+      setResetMessage({ type: "error", text: "Erro ao processar pedido" });
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -559,24 +591,85 @@ export default function ClientesBackoffice() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password {editingUser ? "(deixe em branco para manter)" : "*"}
-                </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required={!editingUser}
-                  minLength={6}
-                />
-                {!editingUser && (
+              {/* Password - apenas para novos utilizadores */}
+              {!editingUser && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                    minLength={6}
+                  />
                   <p className="mt-1 text-xs text-gray-500">Mínimo 6 caracteres</p>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Reset Password - apenas ao editar */}
+              {editingUser && (
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700">Gestão de Password</h4>
+                      <p className="text-xs text-gray-500">Gerar nova password e enviar por email</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetPassword}
+                      disabled={resettingPassword}
+                      className="px-4 py-2 bg-amber-600 text-white text-sm rounded-lg font-medium hover:bg-amber-700 transition disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {resettingPassword ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          A enviar...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                          Reset Password
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Reset Message */}
+                  {resetMessage && (
+                    <div className={`p-3 rounded-lg text-sm ${
+                      resetMessage.type === "success"
+                        ? "bg-green-50 border border-green-200 text-green-800"
+                        : "bg-red-50 border border-red-200 text-red-800"
+                    }`}>
+                      {resetMessage.type === "success" ? (
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          {resetMessage.text}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                          {resetMessage.text}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button

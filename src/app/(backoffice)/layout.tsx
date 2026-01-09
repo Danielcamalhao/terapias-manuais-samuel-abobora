@@ -114,6 +114,29 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
 
             {/* User Menu */}
             <div className="flex items-center gap-4">
+              {/* Botão para visitar site público */}
+              <Link
+                href="/"
+                target="_blank"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition"
+                title="Visitar Site Público"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                <span className="hidden lg:inline">Ver Site</span>
+              </Link>
+
               <div className="hidden md:block text-right">
                 <p className="text-sm font-semibold text-gray-900">{user.name}</p>
                 <p className="text-xs text-gray-500">{user.email}</p>

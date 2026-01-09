@@ -8,23 +8,28 @@ datasource db {
 }
 
 model User {
-  id                 String     @id @default(uuid())
-  email              String     @unique
-  passwordHash       String
-  name               String
-  role               Role       @default(CLIENT)
-  phone              String?
-  birthDate          DateTime?
-  profession         String?
-  addressCity        String?
-  addressPost        String?
-  clientType         ClientType @default(NORMAL)
-  emailVerified      Boolean    @default(false)
-  verificationToken  String?    @unique
-  verificationExpiry DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  bookings           Booking[]
+  id                    String     @id @default(uuid())
+  email                 String     @unique
+  passwordHash          String
+  name                  String
+  role                  Role       @default(CLIENT)
+  phone                 String?
+  birthDate             DateTime?
+  profession            String?
+  addressCity           String?
+  addressPost           String?
+  clientType            ClientType @default(NORMAL)
+  emailVerified         Boolean    @default(false)
+  verificationToken     String?    @unique
+  verificationExpiry    DateTime?
+  // Campos para reset de password
+  resetPasswordToken    String?    @unique
+  resetPasswordExpiry   DateTime?
+  tempPassword          String?    // Password temporária (hash) enviada por email
+  mustChangePassword    Boolean    @default(false) // Flag para forçar alteração
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  bookings              Booking[]
 }
 
 model Practitioner {
