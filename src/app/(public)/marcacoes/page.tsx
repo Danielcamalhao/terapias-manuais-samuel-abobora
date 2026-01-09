@@ -65,7 +65,7 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
-const DragAndDropCalendar = withDragAndDrop(Calendar);
+const DragAndDropCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
 export default function MarcacoesPage() {
   const router = useRouter();
@@ -296,12 +296,16 @@ export default function MarcacoesPage() {
     );
     const duration = service?.durationMin || selectionMinutes;
     updateDraftEvent(slot.start, duration);
-    setDraftEvent((prev) => ({
-      ...(prev || {}),
-      title: service ? service.name : "Nova marcação",
-      status: "PENDING",
-      durationMin: duration,
-    }));
+    setDraftEvent((prev) =>
+      prev
+        ? {
+            ...prev,
+            title: service ? service.name : "Nova marcação",
+            status: "PENDING",
+            durationMin: duration,
+          }
+        : null
+    );
   };
 
   const handleDraftMove = ({
@@ -310,16 +314,19 @@ export default function MarcacoesPage() {
     end,
   }: {
     event: CalendarEvent;
-    start: Date;
-    end: Date;
+    start: string | Date;
+    end: string | Date;
   }) => {
     if (!event.isDraft) return;
+
+    const startDate = typeof start === "string" ? new Date(start) : start;
+    const endDate = typeof end === "string" ? new Date(end) : end;
 
     const earliest = new Date();
     earliest.setHours(0, 0, 0, 0);
     earliest.setDate(earliest.getDate() + 1);
 
-    if (start < earliest) {
+    if (startDate < earliest) {
       setError("Escolha um horário a partir de amanhã.");
       return;
     }
@@ -327,10 +334,10 @@ export default function MarcacoesPage() {
     const baseDuration =
       event.durationMin ||
       Math.max(differenceInMinutes(event.end, event.start), 30);
-    const duration = end
-      ? Math.max(differenceInMinutes(end, start), 15)
+    const duration = endDate
+      ? Math.max(differenceInMinutes(endDate, startDate), 15)
       : baseDuration;
-    updateDraftEvent(start, duration);
+    updateDraftEvent(startDate, duration);
   };
 
   const businessDayStart = useMemo(() => {
