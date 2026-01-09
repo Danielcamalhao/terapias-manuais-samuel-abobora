@@ -12,25 +12,6 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Verificar se já está autenticado
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("/api/profile");
-        if (res.ok) {
-          const data = await res.json();
-          // Já está autenticado, redirecionar
-          if (data.role === "ADMIN") {
-            window.location.href = "/dashboard-bo";
-          } else {
-            window.location.href = "/dashboard";
-          }
-        }
-      } catch {
-        // Não está autenticado, continuar na página de login
-      }
-    };
-    checkAuth();
-
     if (searchParams.get("registered") === "true") {
       setSuccess("Conta criada com sucesso! Verifique o seu email para ativar a conta.");
     }

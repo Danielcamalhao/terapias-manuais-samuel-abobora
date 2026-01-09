@@ -12,20 +12,29 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
 
   const checkAuth = async () => {
     try {
-      const res = await fetch("/api/profile");
+      const res = await fetch("/api/profile", {
+        credentials: "include", // Garantir que os cookies são enviados
+      });
+      console.log("Profile response:", res.status);
+
       if (res.ok) {
         const data = await res.json();
+        console.log("Profile data:", data);
         if (data.role === "ADMIN") {
           setUser(data);
         } else {
-          router.push("/dashboard");
+          window.location.href = "/dashboard";
+          return;
         }
       } else {
-        router.push("/auth/login");
+        console.log("Profile failed, redirecting to login");
+        window.location.href = "/auth/login";
+        return;
       }
     } catch (error) {
       console.error("Erro ao verificar autenticação:", error);
-      router.push("/auth/login");
+      window.location.href = "/auth/login";
+      return;
     } finally {
       setLoading(false);
     }
