@@ -16,6 +16,11 @@ const MONTHS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
+const MONTHS_SHORT = [
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+];
+
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export default function DatePicker({
@@ -28,7 +33,9 @@ export default function DatePicker({
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"days" | "months" | "years">("days");
   const containerRef = useRef<HTMLDivElement>(null);
+  const yearsContainerRef = useRef<HTMLDivElement>(null);
 
   // Inicializar com o mês da data selecionada
   useEffect(() => {
@@ -42,6 +49,7 @@ export default function DatePicker({
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setViewMode("days");
       }
     };
 
@@ -160,19 +168,43 @@ export default function DatePicker({
           <div className="flex items-center justify-between mb-4">
             <button
               type="button"
-              onClick={handlePrevMonth}
+              onClick={() => {
+                if (viewMode === "days") handlePrevMonth();
+                else if (viewMode === "months") setCurrentMonth(new Date(currentMonth.getFullYear() - 1, currentMonth.getMonth(), 1));
+                else if (viewMode === "years") setCurrentMonth(new Date(currentMonth.getFullYear() - 12, currentMonth.getMonth(), 1));
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg transition"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div className="font-semibold text-gray-900">
-              {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </div>
+
+            {/* Botão para alternar entre views */}
             <button
               type="button"
-              onClick={handleNextMonth}
+              onClick={() => {
+                if (viewMode === "days") setViewMode("months");
+                else if (viewMode === "months") setViewMode("years");
+                else setViewMode("days");
+              }}
+              className="font-semibold text-gray-900 hover:bg-green-50 hover:text-green-700 px-3 py-1 rounded-lg transition"
+            >
+              {viewMode === "years"
+                ? `${currentMonth.getFullYear() - 11} - ${currentMonth.getFullYear()}`
+                : viewMode === "months"
+                ? currentMonth.getFullYear()
+                : `${MONTHS[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
+              }
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (viewMode === "days") handleNextMonth();
+                else if (viewMode === "months") setCurrentMonth(new Date(currentMonth.getFullYear() + 1, currentMonth.getMonth(), 1));
+                else if (viewMode === "years") setCurrentMonth(new Date(currentMonth.getFullYear() + 12, currentMonth.getMonth(), 1));
+              }}
               className="p-2 hover:bg-gray-100 rounded-lg transition"
             >
               <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,46 +213,109 @@ export default function DatePicker({
             </button>
           </div>
 
-          {/* Dias da semana */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {WEEKDAYS.map((day) => (
-              <div
-                key={day}
-                className="text-center text-xs font-medium text-gray-500 py-1"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Dias do mês */}
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((day, index) => (
-              <div key={index} className="aspect-square">
-                {day !== null ? (
+          {/* Vista de Anos */}
+          {viewMode === "years" && (
+            <div className="grid grid-cols-4 gap-2" ref={yearsContainerRef}>
+              {(() => {
+                const baseYear = currentMonth.getFullYear();
+                const startYear = baseYear - 11;
+                const years = [];
+                for (let y = startYear; y <= baseYear; y++) {
+                  years.push(y);
+                }
+                return years.map((displayYear) => (
                   <button
+                    key={displayYear}
                     type="button"
-                    onClick={() => !isDateDisabled(day) && handleSelectDay(day)}
-                    disabled={isDateDisabled(day)}
-                    className={`w-full h-full flex items-center justify-center text-sm rounded-lg transition
-                      ${isSelected(day)
+                    onClick={() => {
+                      setCurrentMonth(new Date(displayYear, currentMonth.getMonth(), 1));
+                      setViewMode("months");
+                    }}
+                    className={`py-2 px-1 text-sm rounded-lg transition ${
+                      displayYear === currentMonth.getFullYear()
                         ? "bg-green-600 text-white font-semibold"
-                        : isToday(day)
+                        : displayYear === new Date().getFullYear()
                         ? "bg-green-100 text-green-700 font-semibold"
-                        : isDateDisabled(day)
-                        ? "text-gray-300 cursor-not-allowed"
                         : "text-gray-700 hover:bg-gray-100"
-                      }
-                    `}
+                    }`}
+                  >
+                    {displayYear}
+                  </button>
+                ));
+              })()}
+            </div>
+          )}
+
+          {/* Vista de Meses */}
+          {viewMode === "months" && (
+            <div className="grid grid-cols-3 gap-2">
+              {MONTHS_SHORT.map((month, index) => (
+                <button
+                  key={month}
+                  type="button"
+                  onClick={() => {
+                    setCurrentMonth(new Date(currentMonth.getFullYear(), index, 1));
+                    setViewMode("days");
+                  }}
+                  className={`py-2 px-1 text-sm rounded-lg transition ${
+                    index === currentMonth.getMonth() && currentMonth.getFullYear() === new Date().getFullYear()
+                      ? "bg-green-100 text-green-700 font-semibold"
+                      : index === currentMonth.getMonth()
+                      ? "bg-green-600 text-white font-semibold"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {month}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Vista de Dias */}
+          {viewMode === "days" && (
+            <>
+              {/* Dias da semana */}
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {WEEKDAYS.map((day) => (
+                  <div
+                    key={day}
+                    className="text-center text-xs font-medium text-gray-500 py-1"
                   >
                     {day}
-                  </button>
-                ) : (
-                  <div />
-                )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+
+              {/* Dias do mês */}
+              <div className="grid grid-cols-7 gap-1">
+                {days.map((day, index) => (
+                  <div key={index} className="aspect-square">
+                    {day !== null ? (
+                      <button
+                        type="button"
+                        onClick={() => !isDateDisabled(day) && handleSelectDay(day)}
+                        disabled={isDateDisabled(day)}
+                        className={`w-full h-full flex items-center justify-center text-sm rounded-lg transition
+                          ${isSelected(day)
+                            ? "bg-green-600 text-white font-semibold"
+                            : isToday(day)
+                            ? "bg-green-100 text-green-700 font-semibold"
+                            : isDateDisabled(day)
+                            ? "text-gray-300 cursor-not-allowed"
+                            : "text-gray-700 hover:bg-gray-100"
+                          }
+                        `}
+                      >
+                        {day}
+                      </button>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Botão limpar */}
           {value && (

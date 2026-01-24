@@ -159,3 +159,42 @@ model BirthdayEmailConfig {
   // Última atualização
   updatedAt       DateTime @updatedAt
 }
+
+// Configurações do site (textos, imagens, etc.)
+// Usa singleton pattern - apenas 1 registo (id = "site-settings")
+model SiteSettings {
+  id                    String   @id @default("site-settings")
+
+  // Hero Section (Página Inicial)
+  heroTitle             String   @default("Terapias Manuais")
+  heroSubtitle          String   @default("Samuel Abóbora")
+  heroDescription       String   @default("Ajudamos a restaurar o equilíbrio do seu corpo através de terapias manuais que promovem o bem-estar físico e mental.")
+  heroImageUrl          String?
+  heroImagePublicId     String?
+
+  // Secção Benefícios (Página Inicial)
+  benefitsTitle         String   @default("Porque escolher as nossas terapias?")
+  benefitsSubtitle      String   @default("Oferecemos tratamentos personalizados com foco no seu bem-estar total")
+  benefit1Title         String   @default("Tratamento Personalizado")
+  benefit1Description   String   @default("Cada sessão é adaptada às suas necessidades específicas, garantindo os melhores resultados.")
+  benefit2Title         String   @default("Profissional Qualificado")
+  benefit2Description   String   @default("Terapeuta certificado com vasta experiência em técnicas manuais e osteopatia.")
+  benefit3Title         String   @default("Bem-Estar Integral")
+  benefit3Description   String   @default("Abordagem holística que considera corpo e mente para resultados duradouros.")
+
+  // Secção CTA (Página Inicial)
+  ctaTitle              String   @default("Pronto para melhorar o seu bem-estar?")
+  ctaDescription        String   @default("Agende a sua consulta hoje e comece a sentir-se melhor. Estamos aqui para ajudar na sua jornada de saúde e bem-estar.")
+
+  // Página Sobre
+  aboutTitle            String   @default("Sobre")
+  aboutText1            String   @default("O projeto Terapias Manuais Samuel Abóbora nasceu da paixão por promover a saúde e o bem-estar através do toque humano e da sabedoria do corpo. Acreditamos que cada pessoa é única, e que o tratamento deve ser personalizado, respeitando o ritmo natural de cura do organismo.")
+  aboutText2            String   @default("Samuel Abóbora é terapeuta manual especializado em osteopatia e terapias complementares, com mais de 10 anos de experiência na área.")
+
+  // Footer
+  footerDescription     String   @default("Terapias manuais especializadas para o seu bem-estar físico e mental.")
+  footerEmail           String   @default("contato@samuelabobora.pt")
+  footerPhone           String   @default("+351 XXX XXX XXX")
+
+  updatedAt             DateTime @updatedAt
+}

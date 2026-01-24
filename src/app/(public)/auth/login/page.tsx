@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -17,6 +18,9 @@ function LoginForm() {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeUserName, setWelcomeUserName] = useState("");
+  const [redirectUrl, setRedirectUrl] = useState("");
 
   // Verificar query params na inicialização
   const registeredParam = searchParams.get("registered");
@@ -122,20 +126,27 @@ function LoginForm() {
         }
 
         // Verificar se há redirect pendente
-        const redirectUrl = searchParams.get("redirect");
-        console.log("Redirect info:", { role: data.role, redirectUrl });
+        const pendingRedirect = searchParams.get("redirect");
+        console.log("Redirect info:", { role: data.role, pendingRedirect });
 
-        // Redirecionar conforme o role ou para URL pendente
+        // Determinar URL de redirecionamento
+        let targetUrl = "/dashboard";
         if (data.role === "ADMIN") {
-          console.log("Redirecting to /dashboard-bo...");
-          window.location.href = "/dashboard-bo";
-        } else if (redirectUrl) {
-          console.log("Redirecting to:", redirectUrl);
-          window.location.href = redirectUrl;
-        } else {
-          console.log("Redirecting to /dashboard...");
-          window.location.href = "/dashboard";
+          targetUrl = "/dashboard-bo";
+        } else if (pendingRedirect) {
+          targetUrl = pendingRedirect;
         }
+
+        // Mostrar animação de boas-vindas
+        setWelcomeUserName(data.user?.name || "");
+        setRedirectUrl(targetUrl);
+        setShowWelcome(true);
+        setLoading(false);
+
+        // Redirecionar após a animação
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 2500);
         return;
       } else {
         setError(data.error || "Falha no login.");
@@ -147,6 +158,100 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  // Se login bem sucedido, mostrar animação de boas-vindas
+  if (showWelcome) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 px-4 overflow-hidden">
+        {/* Elementos decorativos de fundo */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-400/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl animate-pulse delay-500" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-300/10 rounded-full blur-3xl" />
+        </div>
+
+        {/* Conteúdo central animado */}
+        <div className="relative z-10 flex flex-col items-center">
+          {/* Logo com animação */}
+          <div className="relative animate-[scaleIn_0.6s_ease-out_forwards]">
+            {/* Círculos decorativos ao redor do logo */}
+            <div className="absolute inset-0 -m-4 animate-[spin_8s_linear_infinite]">
+              <div className="absolute top-0 left-1/2 w-3 h-3 bg-green-400 rounded-full -translate-x-1/2" />
+              <div className="absolute bottom-0 left-1/2 w-2 h-2 bg-emerald-400 rounded-full -translate-x-1/2" />
+              <div className="absolute left-0 top-1/2 w-2 h-2 bg-teal-400 rounded-full -translate-y-1/2" />
+              <div className="absolute right-0 top-1/2 w-3 h-3 bg-green-500 rounded-full -translate-y-1/2" />
+            </div>
+
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/40 to-emerald-500/40 blur-2xl rounded-full animate-pulse" />
+
+            {/* Logo */}
+            <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-2xl ring-4 ring-green-200/50">
+              <Image
+                src="/logo-samuel1.png"
+                alt="Logo Samuel Abóbora"
+                width={120}
+                height={120}
+                className="rounded-2xl"
+                priority
+              />
+            </div>
+          </div>
+
+          {/* Texto de boas-vindas */}
+          <div className="mt-8 text-center animate-[fadeInUp_0.6s_ease-out_0.3s_forwards] opacity-0">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              Bem-vindo{welcomeUserName ? "," : "!"}
+            </h1>
+            {welcomeUserName && (
+              <p className="text-2xl md:text-3xl font-semibold text-green-700 mb-4">
+                {welcomeUserName}
+              </p>
+            )}
+            <p className="text-gray-600 text-lg">
+              A preparar a sua sessão...
+            </p>
+          </div>
+
+          {/* Indicador de progresso */}
+          <div className="mt-8 animate-[fadeInUp_0.6s_ease-out_0.6s_forwards] opacity-0">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* CSS Animations */}
+        <style jsx>{`
+          @keyframes scaleIn {
+            0% {
+              transform: scale(0);
+              opacity: 0;
+            }
+            50% {
+              transform: scale(1.1);
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          @keyframes fadeInUp {
+            0% {
+              transform: translateY(20px);
+              opacity: 0;
+            }
+            100% {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
+        `}</style>
+      </main>
+    );
+  }
 
   // Se o aviso de verificação está ativo, mostrar tela de aviso
   if (showVerificationWarning) {
