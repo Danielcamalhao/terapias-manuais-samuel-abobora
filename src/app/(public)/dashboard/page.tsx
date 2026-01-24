@@ -174,13 +174,15 @@ END:VCALENDAR`;
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendente" },
-      CONFIRMED: { bg: "bg-green-100", text: "text-green-700", label: "Confirmada" },
-      COMPLETED: { bg: "bg-blue-100", text: "text-blue-700", label: "Realizada" },
+      PENDING: { bg: "bg-yellow-50", text: "text-yellow-600", label: "Pendente" },
+      CONFIRMED: { bg: "bg-green-50", text: "text-green-600", label: "Confirmada" },
+      CANCELLED: { bg: "bg-orange-50", text: "text-orange-600", label: "Cancelada" },
+      NO_SHOW: { bg: "bg-red-50", text: "text-red-600", label: "Faltou" },
+      COMPLETED: { bg: "bg-blue-50", text: "text-blue-600", label: "Realizada" },
     };
     const badge = badges[status] || badges.PENDING;
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
         {badge.label}
       </span>
     );

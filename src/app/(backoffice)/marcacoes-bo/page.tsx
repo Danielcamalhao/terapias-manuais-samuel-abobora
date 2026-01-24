@@ -110,6 +110,7 @@ export default function MarcacoesBackoffice() {
   // Filtros
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterDate, setFilterDate] = useState("");
+  const [filterPeriod, setFilterPeriod] = useState<"future" | "history">("future");
 
   useEffect(() => {
     fetchData();
@@ -281,28 +282,49 @@ export default function MarcacoesBackoffice() {
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendente" },
-      CONFIRMED: { bg: "bg-green-100", text: "text-green-700", label: "Confirmada" },
-      CANCELLED: { bg: "bg-red-100", text: "text-red-700", label: "Cancelada" },
-      NO_SHOW: { bg: "bg-gray-100", text: "text-gray-700", label: "Faltou" },
+      PENDING: { bg: "bg-yellow-50", text: "text-yellow-600", label: "Pendente" },
+      CONFIRMED: { bg: "bg-green-50", text: "text-green-600", label: "Confirmada" },
+      CANCELLED: { bg: "bg-orange-50", text: "text-orange-600", label: "Cancelada" },
+      NO_SHOW: { bg: "bg-red-50", text: "text-red-600", label: "Faltou" },
     };
     const badge = badges[status] || badges.PENDING;
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
         {badge.label}
       </span>
     );
   };
 
   // Filtrar marcações
-  const filteredBookings = bookings.filter((booking) => {
-    if (filterStatus !== "ALL" && booking.status !== filterStatus) return false;
-    if (filterDate) {
-      const bookingDate = new Date(booking.startAt).toISOString().split("T")[0];
-      if (bookingDate !== filterDate) return false;
-    }
-    return true;
-  });
+  const filteredBookings = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    return bookings.filter((booking) => {
+      const bookingDate = new Date(booking.startAt);
+      bookingDate.setHours(0, 0, 0, 0);
+
+      // Filtro por período (hoje e futuro vs histórico)
+      if (filterPeriod === "future" && bookingDate < now) return false;
+      if (filterPeriod === "history" && bookingDate >= now) return false;
+
+      // Filtro por status
+      if (filterStatus !== "ALL" && booking.status !== filterStatus) return false;
+
+      // Filtro por data específica
+      if (filterDate) {
+        const bookingDateStr = new Date(booking.startAt).toISOString().split("T")[0];
+        if (bookingDateStr !== filterDate) return false;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      // Ordenar: futuro = mais próximo primeiro, histórico = mais recente primeiro
+      const dateA = new Date(a.startAt).getTime();
+      const dateB = new Date(b.startAt).getTime();
+      return filterPeriod === "future" ? dateA - dateB : dateB - dateA;
+    });
+  }, [bookings, filterPeriod, filterStatus, filterDate]);
 
   const calendarEvents = useMemo(() => {
     const baseEvents: CalendarEvent[] = bookings.map((booking) => ({
@@ -332,10 +354,10 @@ export default function MarcacoesBackoffice() {
     }
 
     const colors: Record<string, string> = {
-      CONFIRMED: "#16a34a",
-      PENDING: "#f59e0b",
-      CANCELLED: "#9ca3af",
-      NO_SHOW: "#ef4444",
+      CONFIRMED: "#16a34a",  // verde
+      PENDING: "#f59e0b",    // amarelo
+      CANCELLED: "#f97316",  // laranja
+      NO_SHOW: "#ef4444",    // vermelho
     };
 
     const background = colors[event.status || "PENDING"] || "#16a34a";
@@ -479,6 +501,31 @@ export default function MarcacoesBackoffice() {
     date.setHours(21, 0, 0, 0);
     return date;
   }, []);
+
+  // Verificar se pode navegar para trás (não permitir ir antes de hoje)
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const canGoBack = useMemo(() => {
+    const prevWeek = addWeeks(calendarDate, -1);
+    // Permitir se a semana anterior ainda incluir hoje ou dias futuros
+    const endOfPrevWeek = addWeeks(prevWeek, 1);
+    return endOfPrevWeek >= today;
+  }, [calendarDate, today]);
+
+  const handleNavigate = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Não permitir navegar para antes de hoje
+    if (d < today) {
+      setCalendarDate(today);
+    } else {
+      setCalendarDate(date);
+    }
+  };
 
   if (loading) {
     return (
@@ -708,14 +755,17 @@ export default function MarcacoesBackoffice() {
               <p className="text-xs text-gray-500">Clique para criar, arraste para mover</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span> Confirmada
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Confirmada
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-50 text-yellow-700 rounded">
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Pendente
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Cancelada
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Cancelada
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Faltou
               </span>
             </div>
           </div>
@@ -723,8 +773,13 @@ export default function MarcacoesBackoffice() {
           <div className="flex flex-wrap items-center gap-2 mb-3 text-sm">
             <button
               type="button"
-              onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
-              className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500 text-xs"
+              onClick={() => canGoBack && setCalendarDate(addWeeks(calendarDate, -1))}
+              disabled={!canGoBack}
+              className={`px-2 py-1 rounded border text-xs ${
+                canGoBack
+                  ? "border-gray-300 bg-white hover:border-green-500"
+                  : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
             >
               ← Anterior
             </button>
@@ -747,7 +802,7 @@ export default function MarcacoesBackoffice() {
             )}
           </div>
 
-          <div className="border border-gray-200 rounded-xl overflow-hidden" style={{ height: 320, overflowY: "auto" }}>
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
             <DragAndDropCalendar
               localizer={localizer}
               events={calendarEvents}
@@ -759,11 +814,11 @@ export default function MarcacoesBackoffice() {
               selectable
               resizable
               popup
-              style={{ height: 600, minHeight: 600 }}
+              style={{ height: 480 }}
               onSelectSlot={handleSlotSelect}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
-              onNavigate={(date) => setCalendarDate(date)}
+              onNavigate={handleNavigate}
               eventPropGetter={eventPropGetter}
               draggableAccessor={() => true}
               tooltipAccessor={(event) =>
@@ -783,40 +838,120 @@ export default function MarcacoesBackoffice() {
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white rounded-xl shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Filtrar por Status
-              </label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="ALL">Todos</option>
-                <option value="PENDING">Pendente</option>
-                <option value="CONFIRMED">Confirmada</option>
-                <option value="CANCELLED">Cancelada</option>
-                <option value="NO_SHOW">Faltou</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Filtrar por Data
-              </label>
-              <DatePicker
-                value={filterDate}
-                onChange={setFilterDate}
-                placeholder="Filtrar por data"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Lista de Marcações */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
+          {/* Tabs de período */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setFilterPeriod("future")}
+              className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
+                filterPeriod === "future"
+                  ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Hoje e Futuro
+              </span>
+            </button>
+            <button
+              onClick={() => setFilterPeriod("history")}
+              className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
+                filterPeriod === "history"
+                  ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Histórico
+              </span>
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="p-4 bg-gray-50 border-b border-gray-200">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-600">Status:</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setFilterStatus("ALL")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                      filterStatus === "ALL"
+                        ? "bg-gray-200 text-gray-800 ring-1 ring-gray-400"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("PENDING")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                      filterStatus === "PENDING"
+                        ? "bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Pendente
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("CONFIRMED")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                      filterStatus === "CONFIRMED"
+                        ? "bg-green-100 text-green-700 ring-1 ring-green-300"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Confirmada
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("CANCELLED")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                      filterStatus === "CANCELLED"
+                        ? "bg-orange-100 text-orange-700 ring-1 ring-orange-300"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Cancelada
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus("NO_SHOW")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition ${
+                      filterStatus === "NO_SHOW"
+                        ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                        : "bg-white text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    Faltou
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-xs font-semibold text-gray-600">Data:</span>
+                <div className="w-40">
+                  <DatePicker
+                    value={filterDate}
+                    onChange={setFilterDate}
+                    placeholder="Filtrar"
+                  />
+                </div>
+                {filterDate && (
+                  <button
+                    onClick={() => setFilterDate("")}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">

@@ -97,6 +97,7 @@ function MarcacoesContent() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [draftEvent, setDraftEvent] = useState<CalendarEvent | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [filterPeriod, setFilterPeriod] = useState<"future" | "history">("future");
 
   useEffect(() => {
     // Verificar autenticação e status de verificação de email
@@ -242,14 +243,14 @@ function MarcacoesContent() {
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
-      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendente" },
-      CONFIRMED: { bg: "bg-green-100", text: "text-green-700", label: "Confirmada" },
-      CANCELLED: { bg: "bg-red-100", text: "text-red-700", label: "Cancelada" },
-      NO_SHOW: { bg: "bg-gray-100", text: "text-gray-700", label: "Não Compareceu" },
+      PENDING: { bg: "bg-yellow-50", text: "text-yellow-600", label: "Pendente" },
+      CONFIRMED: { bg: "bg-green-50", text: "text-green-600", label: "Confirmada" },
+      CANCELLED: { bg: "bg-orange-50", text: "text-orange-600", label: "Cancelada" },
+      NO_SHOW: { bg: "bg-red-50", text: "text-red-600", label: "Faltou" },
     };
     const badge = badges[status] || badges.PENDING;
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
         {badge.label}
       </span>
     );
@@ -325,6 +326,26 @@ END:VCALENDAR`;
     return draftEvent ? [...baseEvents, draftEvent] : baseEvents;
   }, [myBookings, draftEvent]);
 
+  // Filtrar marcações por período
+  const filteredBookings = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    return myBookings.filter((booking) => {
+      const bookingDate = new Date(booking.startAt);
+      bookingDate.setHours(0, 0, 0, 0);
+
+      if (filterPeriod === "future" && bookingDate < now) return false;
+      if (filterPeriod === "history" && bookingDate >= now) return false;
+
+      return true;
+    }).sort((a, b) => {
+      const dateA = new Date(a.startAt).getTime();
+      const dateB = new Date(b.startAt).getTime();
+      return filterPeriod === "future" ? dateA - dateB : dateB - dateA;
+    });
+  }, [myBookings, filterPeriod]);
+
   const eventPropGetter = (event: CalendarEvent) => {
     if (event.isDraft) {
       return {
@@ -338,10 +359,10 @@ END:VCALENDAR`;
     }
 
     const colors: Record<string, string> = {
-      CONFIRMED: "#16a34a",
-      PENDING: "#f59e0b",
-      CANCELLED: "#9ca3af",
-      NO_SHOW: "#ef4444",
+      CONFIRMED: "#16a34a",  // verde
+      PENDING: "#f59e0b",    // amarelo
+      CANCELLED: "#f97316",  // laranja
+      NO_SHOW: "#ef4444",    // vermelho
     };
 
     const background = colors[event.status || "PENDING"] || "#16a34a";
@@ -444,6 +465,29 @@ END:VCALENDAR`;
     date.setHours(21, 0, 0, 0);
     return date;
   }, []);
+
+  // Verificar se pode navegar para trás (não permitir ir antes de hoje)
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const canGoBack = useMemo(() => {
+    const prevWeek = addWeeks(calendarDate, -1);
+    const endOfPrevWeek = addWeeks(prevWeek, 1);
+    return endOfPrevWeek >= today;
+  }, [calendarDate, today]);
+
+  const handleNavigate = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    if (d < today) {
+      setCalendarDate(today);
+    } else {
+      setCalendarDate(date);
+    }
+  };
 
   if (loading) {
     return (
@@ -658,8 +702,13 @@ END:VCALENDAR`;
                 <div className="flex items-center gap-1.5 text-xs">
                   <button
                     type="button"
-                    onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
-                    className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500"
+                    onClick={() => canGoBack && setCalendarDate(addWeeks(calendarDate, -1))}
+                    disabled={!canGoBack}
+                    className={`px-2 py-1 rounded border ${
+                      canGoBack
+                        ? "border-gray-300 bg-white hover:border-green-500"
+                        : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
                   >
                     ← Anterior
                   </button>
@@ -680,7 +729,7 @@ END:VCALENDAR`;
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl overflow-hidden" style={{ height: 320, overflowY: "auto" }}>
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <DragAndDropCalendar
                   localizer={localizer}
                   events={calendarEvents}
@@ -692,10 +741,10 @@ END:VCALENDAR`;
                   selectable={!!selectedService}
                   resizable={false}
                   popup
-                  style={{ height: 600, minHeight: 600 }}
+                  style={{ height: 480 }}
                   onSelectSlot={handleSlotSelect}
                   onEventDrop={handleDraftMove}
-                  onNavigate={(date) => setCalendarDate(date)}
+                  onNavigate={handleNavigate}
                   eventPropGetter={eventPropGetter}
                   draggableAccessor={(event) => !!event.isDraft}
                   min={businessDayStart}
@@ -741,31 +790,66 @@ END:VCALENDAR`;
           </div>
 
           {/* Minhas Marcações */}
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Histórico de Marcações
-            </h2>
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 overflow-hidden">
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setFilterPeriod("future")}
+                className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
+                  filterPeriod === "future"
+                    ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Próximas
+                </span>
+              </button>
+              <button
+                onClick={() => setFilterPeriod("history")}
+                className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
+                  filterPeriod === "history"
+                    ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Histórico
+                </span>
+              </button>
+            </div>
 
-            {myBookings.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <svg
-                  className="w-16 h-16 mx-auto mb-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                <p>Ainda não tem marcações</p>
-              </div>
-            ) : (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {myBookings.map((booking) => {
+            <div className="p-6">
+              {filteredBookings.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-3 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p className="text-sm">
+                    {filterPeriod === "future"
+                      ? "Não tem marcações agendadas"
+                      : "Ainda não tem histórico de marcações"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {filteredBookings.map((booking) => {
                   const startDate = new Date(booking.startAt);
                   const isPast = startDate < new Date();
 
@@ -879,8 +963,9 @@ END:VCALENDAR`;
                     </div>
                   );
                 })}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
