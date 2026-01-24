@@ -69,6 +69,18 @@ export default function ContactosBoPage() {
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
   };
 
+  const openGmail = (email: string, name: string) => {
+    const subject = encodeURIComponent("Re: Contacto - Terapias Manuais Samuel Abóbora");
+    const body = encodeURIComponent(`Olá ${name},\n\nObrigado por entrar em contacto connosco.\n\n`);
+    window.open(`https://mail.google.com/mail/?view=cm&to=${email}&su=${subject}&body=${body}`, "_blank");
+  };
+
+  const openOutlook = (email: string, name: string) => {
+    const subject = encodeURIComponent("Re: Contacto - Terapias Manuais Samuel Abóbora");
+    const body = encodeURIComponent(`Olá ${name},\n\nObrigado por entrar em contacto connosco.\n\n`);
+    window.open(`https://outlook.live.com/mail/0/deeplink/compose?to=${email}&subject=${subject}&body=${body}`, "_blank");
+  };
+
   const unreadCount = contacts.filter((c) => !c.read).length;
 
   return (
@@ -177,15 +189,38 @@ export default function ContactosBoPage() {
 
                       {/* Ações */}
                       <div className="flex flex-wrap items-center gap-2 mt-4">
-                        {/* Botões de contacto */}
+                        {/* Botões de email */}
                         <button
                           onClick={() => openEmail(c.email, c.name)}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition"
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition"
+                          title="Abrir no cliente de email padrão"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
-                          Enviar Email
+                          Email
+                        </button>
+
+                        <button
+                          onClick={() => openGmail(c.email, c.name)}
+                          className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition"
+                          title="Abrir no Gmail"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
+                          </svg>
+                          Gmail
+                        </button>
+
+                        <button
+                          onClick={() => openOutlook(c.email, c.name)}
+                          className="flex items-center gap-2 px-3 py-2 bg-sky-50 text-sky-600 rounded-lg text-sm font-medium hover:bg-sky-100 transition"
+                          title="Abrir no Outlook"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.229-.58.229h-8.547v-6.959l1.6 1.229c.102.075.249.112.442.112.192 0 .34-.037.441-.112l6.882-5.334v-.219zm-9.365-1.498v5.801l-2.635 2.042L0 5.443v-.018l.022-.04c.063-.163.15-.298.261-.405.11-.107.245-.179.405-.216.161-.037.338-.037.533 0l11.414 1.125zm0 6.723v5.5H.764c-.228 0-.42-.075-.577-.224C.078 17.738 0 17.545 0 17.316V6.312l12 9.3h2.635zm.947-6.723l9.365-1.125c.227-.029.422.006.586.106.163.1.278.24.345.418l.022.04v.018l-7.683 5.934-2.635-2.042V5.889z"/>
+                          </svg>
+                          Outlook
                         </button>
 
                         {c.phone && (
