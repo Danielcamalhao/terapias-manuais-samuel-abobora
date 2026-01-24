@@ -102,6 +102,11 @@ export default function MarcacoesBackoffice() {
   const [movingBooking, setMovingBooking] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
 
+  // Pesquisa de clientes
+  const [clientSearch, setClientSearch] = useState("");
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [selectedUserName, setSelectedUserName] = useState("");
+
   // Filtros
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterDate, setFilterDate] = useState("");
@@ -118,6 +123,18 @@ export default function MarcacoesBackoffice() {
       setSelectedSlot("");
     }
   }, [selectedService, selectedDate]);
+
+  // Filtrar clientes baseado na pesquisa
+  const filteredUsers = useMemo(() => {
+    if (!clientSearch.trim()) return [];
+    const search = clientSearch.toLowerCase();
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(search) ||
+        user.email.toLowerCase().includes(search) ||
+        (user.phone && user.phone.includes(search))
+    ).slice(0, 8); // Limitar a 8 resultados
+  }, [users, clientSearch]);
 
   const fetchData = async () => {
     try {
@@ -162,6 +179,13 @@ export default function MarcacoesBackoffice() {
     } finally {
       setLoadingSlots(false);
     }
+  };
+
+  const handleSelectClient = (user: User) => {
+    setSelectedUser(user.id);
+    setSelectedUserName(user.name);
+    setClientSearch(user.name);
+    setShowClientDropdown(false);
   };
 
   const handleCreateBooking = async (e: React.FormEvent) => {
@@ -246,6 +270,8 @@ export default function MarcacoesBackoffice() {
 
   const resetForm = () => {
     setSelectedUser("");
+    setSelectedUserName("");
+    setClientSearch("");
     setSelectedService("");
     setSelectedDate("");
     setSelectedSlot("");
@@ -466,18 +492,18 @@ export default function MarcacoesBackoffice() {
     <main className="min-h-screen bg-gray-50 px-6 py-10">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-green-800 mb-2">
+            <h1 className="text-2xl font-bold text-green-800 mb-1">
               Gestão de Marcações
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm">
               Total de marcações: {bookings.length}
             </p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition"
+            className="bg-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-green-800 transition"
           >
             {showForm ? "Fechar" : "Nova Marcação"}
           </button>
@@ -485,256 +511,132 @@ export default function MarcacoesBackoffice() {
 
         {/* Mensagens */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm">
             {success}
           </div>
         )}
 
-        {/* Calendário interativo */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                Calendário semanal
-              </h2>
-              <p className="text-gray-600">
-                Arraste para criar um horário, ajuste o bloco ou mova marcações existentes.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-green-600"></span> Confirmada
-              </span>
-              <span className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Pendente
-              </span>
-              <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-200 text-gray-700 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-gray-500"></span> Cancelada
-              </span>
-              <span className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-red-500"></span> Faltou
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
-            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
-                <div className="text-sm font-semibold text-gray-800">Navegar semanas</div>
-                <div className="flex items-center gap-2 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                  >
-                    ← Semana anterior
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(new Date())}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                  >
-                    Hoje
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                  >
-                    Próxima semana →
-                  </button>
-                </div>
-              </div>
-              <DragAndDropCalendar
-                localizer={localizer}
-                events={calendarEvents}
-                defaultView="week"
-                date={calendarDate}
-                views={["week", "day"]}
-                step={30}
-                timeslots={2}
-                selectable
-                resizable
-                popup
-                style={{ height: 580 }}
-                onSelectSlot={handleSlotSelect}
-                onEventDrop={handleEventDrop}
-                onEventResize={handleEventResize}
-                onNavigate={(date) => setCalendarDate(date)}
-                eventPropGetter={eventPropGetter}
-                draggableAccessor={() => true}
-                tooltipAccessor={(event) =>
-                  `${event.serviceName || ""}${event.userName ? ` · ${event.userName}` : ""}`
-                }
-                min={businessDayStart}
-                max={businessDayEnd}
-                messages={{
-                  week: "Semana",
-                  day: "Dia",
-                  previous: "Anterior",
-                  next: "Seguinte",
-                  today: "Hoje",
-                  month: "Mês",
-                }}
-              />
-            </div>
-
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
-              <h3 className="text-lg font-semibold text-gray-900">Criar/ajustar via calendário</h3>
-              {draftEvent ? (
-                <div className="space-y-2 text-sm text-gray-700">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">Horário selecionado</span>
-                      <button
-                        onClick={() => {
-                          setDraftEvent(null);
-                          setSelectedSlot("");
-                          setSelectedDate("");
-                        }}
-                        className="text-xs text-red-600 hover:underline"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  <p>
-                    {format(draftEvent.start, "EEEE, dd MMMM", { locale: pt })} às{" "}
-                    {format(draftEvent.start, "HH:mm")} (
-                    {draftEvent.durationMin || differenceInMinutes(draftEvent.end, draftEvent.start)}{" "}
-                    min)
-                  </p>
-                  <p className="text-gray-600">
-                    Ajuste o bloco no calendário para aumentar/diminuir ou mover para outro dia.
-                  </p>
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
-                    disabled={!selectedService || !selectedUser}
-                  >
-                    Usar horário no formulário
-                  </button>
-                  {!selectedService && (
-                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-                      Selecione um serviço para aplicar a duração correta.
-                    </p>
-                  )}
-                  {!selectedUser && (
-                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
-                      Selecione o cliente antes de gravar a marcação.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-600">
-                  Selecione um bloco de tempo no calendário (pode arrastar e redimensionar) para
-                  preencher automaticamente o formulário de nova marcação.
-                </p>
-              )}
-              {movingBooking && (
-                <div className="text-sm text-gray-600 bg-white border border-gray-200 rounded-lg p-2">
-                  A atualizar marcação...
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Formulário de Nova Marcação */}
+        {/* Formulário de Nova Marcação - ACIMA do calendário */}
         {showForm && (
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-8 border border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Nova Marcação (Admin)
+          <div className="bg-white rounded-xl shadow-lg p-5 mb-6 border border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              Nova Marcação
             </h2>
 
-            <form onSubmit={handleCreateBooking} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Selecionar Cliente */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <form onSubmit={handleCreateBooking}>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                {/* Pesquisa de Cliente */}
+                <div className="relative">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Cliente *
                   </label>
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      setShowClientDropdown(true);
+                      if (!e.target.value) {
+                        setSelectedUser("");
+                        setSelectedUserName("");
+                      }
+                    }}
+                    onFocus={() => setShowClientDropdown(true)}
+                    placeholder="Pesquisar por nome, email ou telefone..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     required
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.name} ({user.email})
-                      </option>
-                    ))}
-                  </select>
+                  />
+                  {showClientDropdown && filteredUsers.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredUsers.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => handleSelectClient(user)}
+                          className="w-full px-3 py-2 text-left hover:bg-green-50 border-b border-gray-100 last:border-0"
+                        >
+                          <div className="font-medium text-sm text-gray-900">{user.name}</div>
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                          {user.phone && <div className="text-xs text-gray-400">{user.phone}</div>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedUserName && selectedUser && (
+                    <div className="mt-1 text-xs text-green-600">
+                      Selecionado: {selectedUserName}
+                    </div>
+                  )}
                 </div>
 
-                {/* Selecionar Serviço */}
+                {/* Serviço */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Serviço *
                   </label>
                   <select
                     value={selectedService}
                     onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     required
                   >
-                    <option value="">Selecione um serviço</option>
+                    <option value="">Selecione</option>
                     {services.map((service) => (
                       <option key={service.id} value={service.id}>
-                        {service.name} - {service.durationMin}min - €
-                        {(service.priceCents / 100).toFixed(2)}
+                        {service.name} ({service.durationMin}min)
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Selecionar Data */}
+                {/* Data */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Data *
                   </label>
                   <DatePicker
                     value={selectedDate}
                     onChange={setSelectedDate}
-                    placeholder="Selecionar data"
+                    placeholder="Selecionar"
                   />
                 </div>
 
                 {/* Notas */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Notas
                   </label>
-                  <textarea
+                  <input
+                    type="text"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    placeholder="Observações..."
                   />
                 </div>
               </div>
 
               {/* Horários Disponíveis */}
               {selectedService && selectedDate && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
                     Horário *
                   </label>
                   {loadingSlots ? (
-                    <div className="text-center py-8">A carregar...</div>
+                    <div className="text-center py-4 text-sm text-gray-500">A carregar...</div>
                   ) : availableSlots.length > 0 ? (
-                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {availableSlots.map((slot, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setSelectedSlot(slot.startAt)}
-                          className={`px-3 py-2 rounded-lg border-2 text-sm font-semibold transition ${
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition ${
                             selectedSlot === slot.startAt
                               ? "bg-green-700 text-white border-green-700"
                               : "bg-white border-gray-300 hover:border-green-500"
@@ -745,18 +647,41 @@ export default function MarcacoesBackoffice() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg text-gray-500">
+                    <div className="text-center py-4 border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm">
                       Sem horários disponíveis
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="flex gap-4">
+              {/* Info do draft */}
+              {draftEvent && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      <span className="font-semibold">Horário do calendário:</span>{" "}
+                      {format(draftEvent.start, "EEEE, dd MMM", { locale: pt })} às {format(draftEvent.start, "HH:mm")}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftEvent(null);
+                        setSelectedSlot("");
+                        setSelectedDate("");
+                      }}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
                 <button
                   type="submit"
-                  disabled={creating || (!selectedSlot && !draftEvent)}
-                  className="flex-1 bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
+                  disabled={creating || (!selectedSlot && !draftEvent) || !selectedUser}
+                  className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-green-800 transition disabled:opacity-50"
                 >
                   {creating ? "A criar..." : "Criar Marcação"}
                 </button>
@@ -766,7 +691,7 @@ export default function MarcacoesBackoffice() {
                     setShowForm(false);
                     resetForm();
                   }}
-                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
+                  className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-300"
                 >
                   Cancelar
                 </button>
@@ -775,17 +700,100 @@ export default function MarcacoesBackoffice() {
           </div>
         )}
 
+        {/* Calendário interativo */}
+        <div className="bg-white rounded-xl shadow-lg p-4 mb-6 border border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Calendário</h2>
+              <p className="text-xs text-gray-500">Clique para criar, arraste para mover</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span> Confirmada
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> Pendente
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span> Cancelada
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3 text-sm">
+            <button
+              type="button"
+              onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
+              className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500 text-xs"
+            >
+              ← Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarDate(new Date())}
+              className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500 text-xs"
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
+              className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500 text-xs"
+            >
+              Próxima →
+            </button>
+            {movingBooking && (
+              <span className="text-xs text-gray-500 ml-2">A atualizar...</span>
+            )}
+          </div>
+
+          <div className="border border-gray-200 rounded-xl overflow-hidden" style={{ height: 320, overflowY: "auto" }}>
+            <DragAndDropCalendar
+              localizer={localizer}
+              events={calendarEvents}
+              defaultView="week"
+              date={calendarDate}
+              views={["week", "day"]}
+              step={30}
+              timeslots={2}
+              selectable
+              resizable
+              popup
+              style={{ height: 600, minHeight: 600 }}
+              onSelectSlot={handleSlotSelect}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              onNavigate={(date) => setCalendarDate(date)}
+              eventPropGetter={eventPropGetter}
+              draggableAccessor={() => true}
+              tooltipAccessor={(event) =>
+                `${event.serviceName || ""}${event.userName ? ` · ${event.userName}` : ""}`
+              }
+              min={businessDayStart}
+              max={businessDayEnd}
+              messages={{
+                week: "Semana",
+                day: "Dia",
+                previous: "Anterior",
+                next: "Seguinte",
+                today: "Hoje",
+                month: "Mês",
+              }}
+            />
+          </div>
+        </div>
+
         {/* Filtros */}
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
+        <div className="bg-white rounded-xl shadow p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Filtrar por Status
               </label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               >
                 <option value="ALL">Todos</option>
                 <option value="PENDING">Pendente</option>
@@ -795,7 +803,7 @@ export default function MarcacoesBackoffice() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Filtrar por Data
               </label>
               <DatePicker
@@ -813,22 +821,22 @@ export default function MarcacoesBackoffice() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Código
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Cliente
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Serviço
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Data/Hora
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
                     Ações
                   </th>
                 </tr>
@@ -836,7 +844,7 @@ export default function MarcacoesBackoffice() {
               <tbody className="divide-y divide-gray-200">
                 {filteredBookings.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm">
                       Nenhuma marcação encontrada
                     </td>
                   </tr>
@@ -845,31 +853,27 @@ export default function MarcacoesBackoffice() {
                     const startDate = new Date(booking.startAt);
                     return (
                       <tr key={booking.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {booking.code}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           <div>
                             <div className="font-medium">{booking.user.name}</div>
-                            <div className="text-gray-500">{booking.user.email}</div>
-                            {booking.user.phone && (
-                              <div className="text-gray-500">{booking.user.phone}</div>
-                            )}
+                            <div className="text-xs text-gray-500">{booking.user.email}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           <div>
                             <div className="font-medium">{booking.service.name}</div>
-                            <div className="text-gray-500">
-                              {booking.service.durationMin}min - €
-                              {(booking.service.priceCents / 100).toFixed(2)}
+                            <div className="text-xs text-gray-500">
+                              {booking.service.durationMin}min
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900">
                           <div>
                             <div>{startDate.toLocaleDateString("pt-PT")}</div>
-                            <div className="text-gray-500">
+                            <div className="text-xs text-gray-500">
                               {startDate.toLocaleTimeString("pt-PT", {
                                 hour: "2-digit",
                                 minute: "2-digit",
@@ -877,13 +881,13 @@ export default function MarcacoesBackoffice() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
                           <select
                             value={booking.status}
                             onChange={(e) =>
                               handleUpdateStatus(booking.id, e.target.value)
                             }
-                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
                           >
                             <option value="PENDING">Pendente</option>
                             <option value="CONFIRMED">Confirmada</option>
@@ -891,10 +895,10 @@ export default function MarcacoesBackoffice() {
                             <option value="NO_SHOW">Faltou</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td className="px-4 py-3 text-sm">
                           <button
                             onClick={() => handleDeleteBooking(booking.id)}
-                            className="text-red-600 hover:text-red-700 font-semibold"
+                            className="text-red-600 hover:text-red-700 font-semibold text-xs"
                           >
                             Remover
                           </button>

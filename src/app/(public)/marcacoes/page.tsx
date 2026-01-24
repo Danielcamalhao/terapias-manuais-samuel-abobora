@@ -526,182 +526,83 @@ END:VCALENDAR`;
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Criar Nova Marcação */}
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Nova Marcação</h2>
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Nova Marcação</h2>
 
-              <div className="mb-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      Calendário semanal
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {selectedService
-                        ? "Clique no calendário para escolher o horário. Pode arrastar o bloco para ajustar."
-                        : "Selecione primeiro um serviço abaixo para poder escolher o horário."}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                    >
-                      ← Semana anterior
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCalendarDate(new Date())}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                    >
-                      Hoje
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
-                      className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-green-500"
-                    >
-                      Próxima semana →
-                    </button>
-                  </div>
+            {/* Formulário compacto */}
+            <form onSubmit={handleCreateBooking} className="space-y-4 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Selecionar Serviço */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Serviço *
+                  </label>
+                  <select
+                    value={selectedService}
+                    onChange={(e) => {
+                      setSelectedService(e.target.value);
+                      setDraftEvent(null);
+                      setSelectedSlot("");
+                      setError("");
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Selecione um serviço</option>
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name} - {service.durationMin}min - €{(service.priceCents / 100).toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="border border-gray-200 rounded-2xl overflow-hidden shadow">
-                  <DragAndDropCalendar
-                    localizer={localizer}
-                    events={calendarEvents}
-                    defaultView="week"
-                    date={calendarDate}
-                    views={["week", "day"]}
-                    step={30}
-                    timeslots={2}
-                    selectable={!!selectedService}
-                    resizable={false}
-                    popup
-                    style={{ height: 420 }}
-                    onSelectSlot={handleSlotSelect}
-                    onEventDrop={handleDraftMove}
-                    onNavigate={(date) => setCalendarDate(date)}
-                    eventPropGetter={eventPropGetter}
-                    draggableAccessor={(event) => !!event.isDraft}
-                    min={businessDayStart}
-                    max={businessDayEnd}
-                  messages={{
-                    week: "Semana",
-                    day: "Dia",
-                    previous: "Anterior",
-                    next: "Seguinte",
-                    today: "Hoje",
-                    month: "Mês",
-                  }}
-                />
-              </div>
-              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm text-gray-700">
-                {draftEvent ? (
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {format(draftEvent.start, "EEEE, dd MMMM", { locale: pt })}
-                      </p>
-                      <p>
-                        {format(draftEvent.start, "HH:mm")} •{" "}
-                        {draftEvent.durationMin ||
-                          differenceInMinutes(draftEvent.end, draftEvent.start)}{" "}
-                        min
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setDraftEvent(null);
-                        setSelectedSlot("");
-                        setSelectedDate("");
-                      }}
-                      className="text-red-600 hover:text-red-700 text-xs font-semibold"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-                ) : (
-                  <p>
-                    Selecione ou arraste um bloco no calendário para marcar; a duração segue o
-                    serviço escolhido.
-                  </p>
-                )}
-              </div>
-            </div>
 
-            <form onSubmit={handleCreateBooking} className="space-y-6">
-              {/* Selecionar Serviço */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Serviço *
-                </label>
-                <select
-                  value={selectedService}
-                  onChange={(e) => {
-                    setSelectedService(e.target.value);
-                    // Limpar draft e slot ao mudar de serviço para recalcular duração
-                    setDraftEvent(null);
-                    setSelectedSlot("");
-                    setError("");
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Selecione um serviço</option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name} - {service.durationMin}min - €
-                      {(service.priceCents / 100).toFixed(2)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Selecionar Data */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Data *
-                </label>
-                <DatePicker
-                  value={selectedDate}
-                  onChange={setSelectedDate}
-                  minDate={minDate}
-                  placeholder="Selecionar data"
-                />
+                {/* Selecionar Data */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Data *
+                  </label>
+                  <DatePicker
+                    value={selectedDate}
+                    onChange={setSelectedDate}
+                    minDate={minDate}
+                    placeholder="Selecionar data"
+                  />
+                </div>
               </div>
 
               {/* Selecionar Horário */}
               {selectedService && selectedDate && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                     Horário Disponível *
                   </label>
                   {loadingSlots ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-4 text-gray-500 text-sm">
                       A carregar horários...
                     </div>
                   ) : availableSlots.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                  {availableSlots.map((slot, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        const selectedStart = new Date(slot.startAt);
-                        const service = services.find((s) => s.id === selectedService);
-                        const duration = service?.durationMin || 30;
-                        setSelectedSlot(slot.startAt);
-                        setSelectedDate(slot.startAt.split("T")[0]);
-                        setDraftEvent({
-                          id: "draft",
-                          title: service ? service.name : "Nova marcação",
-                          start: selectedStart,
-                          end: addMinutes(selectedStart, duration),
-                          isDraft: true,
-                          durationMin: duration,
-                        });
-                      }}
-                          className={`px-4 py-2 rounded-lg border-2 font-semibold transition ${
+                    <div className="grid grid-cols-4 md:grid-cols-6 gap-1.5 max-h-32 overflow-y-auto">
+                      {availableSlots.map((slot, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            const selectedStart = new Date(slot.startAt);
+                            const service = services.find((s) => s.id === selectedService);
+                            const duration = service?.durationMin || 30;
+                            setSelectedSlot(slot.startAt);
+                            setSelectedDate(slot.startAt.split("T")[0]);
+                            setDraftEvent({
+                              id: "draft",
+                              title: service ? service.name : "Nova marcação",
+                              start: selectedStart,
+                              end: addMinutes(selectedStart, duration),
+                              isDraft: true,
+                              durationMin: duration,
+                            });
+                          }}
+                          className={`px-2 py-1.5 rounded-lg border text-sm font-medium transition ${
                             selectedSlot === slot.startAt
                               ? "bg-green-700 text-white border-green-700"
                               : "bg-white border-gray-300 text-gray-700 hover:border-green-500"
@@ -712,35 +613,131 @@ END:VCALENDAR`;
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
-                      Nenhum horário disponível para esta data
+                    <div className="text-center py-4 text-gray-500 text-sm border border-dashed border-gray-300 rounded-lg">
+                      Nenhum horário disponível
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Notas */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Notas (opcional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Informações adicionais..."
+              {/* Notas e Botão */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                    Notas (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Informações adicionais..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={creating || (!selectedSlot && !draftEvent)}
+                  className="bg-green-700 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {creating ? "A criar..." : "Criar Marcação"}
+                </button>
+              </div>
+            </form>
+
+            {/* Calendário com altura reduzida e scroll */}
+            <div>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Calendário</p>
+                  <p className="text-xs text-gray-500">
+                    {selectedService
+                      ? "Clique para escolher horário ou arraste o bloco"
+                      : "Selecione primeiro um serviço"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(addWeeks(calendarDate, -1))}
+                    className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    ← Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(new Date())}
+                    className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    Hoje
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarDate(addWeeks(calendarDate, 1))}
+                    className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-green-500"
+                  >
+                    Próxima →
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden" style={{ height: 320, overflowY: "auto" }}>
+                <DragAndDropCalendar
+                  localizer={localizer}
+                  events={calendarEvents}
+                  defaultView="week"
+                  date={calendarDate}
+                  views={["week", "day"]}
+                  step={30}
+                  timeslots={2}
+                  selectable={!!selectedService}
+                  resizable={false}
+                  popup
+                  style={{ height: 600, minHeight: 600 }}
+                  onSelectSlot={handleSlotSelect}
+                  onEventDrop={handleDraftMove}
+                  onNavigate={(date) => setCalendarDate(date)}
+                  eventPropGetter={eventPropGetter}
+                  draggableAccessor={(event) => !!event.isDraft}
+                  min={businessDayStart}
+                  max={businessDayEnd}
+                  messages={{
+                    week: "Semana",
+                    day: "Dia",
+                    previous: "Anterior",
+                    next: "Seguinte",
+                    today: "Hoje",
+                    month: "Mês",
+                  }}
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={creating || (!selectedSlot && !draftEvent)}
-                className="w-full bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {creating ? "A criar..." : "Criar Marcação"}
-              </button>
-            </form>
+              {/* Info do horário selecionado */}
+              {draftEvent && (
+                <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-semibold text-gray-900">
+                        {format(draftEvent.start, "EEEE, dd MMMM", { locale: pt })}
+                      </span>
+                      <span className="text-gray-600 ml-2">
+                        {format(draftEvent.start, "HH:mm")} • {draftEvent.durationMin || differenceInMinutes(draftEvent.end, draftEvent.start)} min
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftEvent(null);
+                        setSelectedSlot("");
+                        setSelectedDate("");
+                      }}
+                      className="text-red-600 hover:text-red-700 text-xs font-semibold"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Minhas Marcações */}
