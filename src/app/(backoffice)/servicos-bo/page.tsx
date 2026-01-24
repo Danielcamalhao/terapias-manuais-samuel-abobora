@@ -95,7 +95,7 @@ export default function ServicosBackofficePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...formData,
-        priceCents: Number(formData.priceCents),
+        priceCents: Math.round(Number(formData.priceCents) * 100),
         durationMin: Number(formData.durationMin),
       }),
     });
@@ -206,6 +206,9 @@ export default function ServicosBackofficePage() {
                 name="priceCents"
                 value={formData.priceCents}
                 onChange={handleChange}
+                step="0.01"
+                min="0"
+                placeholder="Ex: 50.00"
                 className="w-full border border-gray-300 rounded-md p-2 mt-1"
                 required
               />

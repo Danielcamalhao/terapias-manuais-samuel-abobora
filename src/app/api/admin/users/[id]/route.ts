@@ -96,6 +96,34 @@ export async function DELETE(
     return NextResponse.json({ error: "Não podes apagar a tua própria conta." }, { status: 400 });
   }
 
+  // Buscar o utilizador a ser apagado
+  const userToDelete = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, role: true, createdAt: true },
+  });
+
+  if (!userToDelete) {
+    return NextResponse.json({ error: "Utilizador não encontrado." }, { status: 404 });
+  }
+
+  // Verificar se é um administrador a ser apagado
+  if (userToDelete.role === "ADMIN") {
+    // Encontrar o administrador mais antigo (primeiro criado no sistema)
+    const primaryAdmin = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+
+    // Se o utilizador a apagar é o admin principal, bloquear
+    if (primaryAdmin && primaryAdmin.id === id) {
+      return NextResponse.json(
+        { error: "O administrador principal não pode ser removido." },
+        { status: 403 }
+      );
+    }
+  }
+
   await prisma.user.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

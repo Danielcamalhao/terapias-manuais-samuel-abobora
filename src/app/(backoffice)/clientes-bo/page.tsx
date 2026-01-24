@@ -13,6 +13,7 @@ interface User {
   emailVerified: boolean;
   birthDate: string | null;
   createdAt: string;
+  isPrimaryAdmin?: boolean;
   _count?: {
     bookings: number;
   };
@@ -466,12 +467,30 @@ export default function ClientesBackoffice() {
                         <tr key={user.id} className="hover:bg-purple-50 transition">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold mr-3 bg-gradient-to-br from-purple-600 to-purple-500">
-                                {user.name.charAt(0).toUpperCase()}
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold mr-3 ${
+                                user.isPrimaryAdmin
+                                  ? "bg-gradient-to-br from-amber-500 to-orange-500 ring-2 ring-amber-300"
+                                  : "bg-gradient-to-br from-purple-600 to-purple-500"
+                              }`}>
+                                {user.isPrimaryAdmin ? (
+                                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  user.name.charAt(0).toUpperCase()
+                                )}
                               </div>
                               <div>
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
                                   {user.name}
+                                  {user.isPrimaryAdmin && (
+                                    <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                      Principal
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-sm text-gray-500">{user.email}</div>
                               </div>
@@ -506,12 +525,18 @@ export default function ClientesBackoffice() {
                             >
                               Editar
                             </button>
-                            <button
-                              onClick={() => handleDelete(user.id, user.name)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Remover
-                            </button>
+                            {user.isPrimaryAdmin ? (
+                              <span className="text-gray-400 cursor-not-allowed" title="O administrador principal não pode ser removido">
+                                Protegido
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleDelete(user.id, user.name)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Remover
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -25,6 +25,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Buscar o administrador principal (primeiro criado)
+  const primaryAdmin = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -43,7 +50,14 @@ export async function GET() {
       },
     },
   });
-  return NextResponse.json(users);
+
+  // Marcar o admin principal na lista
+  const usersWithPrimaryFlag = users.map((u) => ({
+    ...u,
+    isPrimaryAdmin: u.role === "ADMIN" && primaryAdmin?.id === u.id,
+  }));
+
+  return NextResponse.json(usersWithPrimaryFlag);
 }
 
 export async function POST(req: Request) {
