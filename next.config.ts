@@ -55,13 +55,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    turbo: {
-      rules: {
-        "*.png": ["asset/resource"], // corrige o bug do Turbopack com PNGs locais
-      },
-    },
-  },
   async headers() {
     return [
       {
