@@ -1,22 +1,19 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 function AlterarPasswordContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const token = searchParams.get("token");
 
-  const [loading, setLoading] = useState(true);
-  const [validating, setValidating] = useState(true);
-  const [tokenValid, setTokenValid] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
-    tempPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
@@ -24,60 +21,32 @@ function AlterarPasswordContent() {
   useEffect(() => {
     if (!token) {
       setError("Link inválido. Por favor, utilize o link enviado no email.");
-      setValidating(false);
-      setLoading(false);
-      return;
     }
-
-    // Validar token
-    const validateToken = async () => {
-      try {
-        const res = await fetch(`/api/change-password?token=${token}`);
-        const data = await res.json();
-
-        if (data.valid) {
-          setTokenValid(true);
-          setUserName(data.name);
-        } else {
-          setError(data.error || "Link inválido ou expirado.");
-        }
-      } catch {
-        setError("Erro ao validar link. Tente novamente.");
-      } finally {
-        setValidating(false);
-        setLoading(false);
-      }
-    };
-
-    validateToken();
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError("As passwords não coincidem.");
-      setLoading(false);
+      setError("As palavras-passe não coincidem.");
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      setError("A nova password deve ter pelo menos 6 caracteres.");
-      setLoading(false);
+      setError("A palavra-passe deve ter pelo menos 6 caracteres.");
       return;
     }
 
+    setLoading(true);
+
     try {
-      const res = await fetch("/api/change-password", {
+      const res = await fetch("/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token,
-          tempPassword: formData.tempPassword,
-          newPassword: formData.newPassword,
-          confirmPassword: formData.confirmPassword,
+          password: formData.newPassword,
         }),
       });
 
@@ -85,8 +54,12 @@ function AlterarPasswordContent() {
 
       if (res.ok) {
         setSuccess(true);
+        // Redirecionar para login após 3 segundos
+        setTimeout(() => {
+          router.push("/auth/login");
+        }, 3000);
       } else {
-        setError(data.error || "Erro ao alterar password.");
+        setError(data.error || "Erro ao alterar palavra-passe.");
       }
     } catch {
       setError("Erro ao processar pedido. Tente novamente.");
@@ -94,17 +67,6 @@ function AlterarPasswordContent() {
       setLoading(false);
     }
   };
-
-  if (validating) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700 mx-auto"></div>
-          <p className="mt-4 text-gray-600">A validar link...</p>
-        </div>
-      </main>
-    );
-  }
 
   if (success) {
     return (
@@ -126,10 +88,10 @@ function AlterarPasswordContent() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Password Alterada!
+            Palavra-passe Alterada!
           </h1>
           <p className="text-gray-600 mb-6">
-            A sua password foi alterada com sucesso. Já pode fazer login com a nova password.
+            A sua palavra-passe foi alterada com sucesso. Será redirecionado para o login...
           </p>
           <Link
             href="/auth/login"
@@ -142,7 +104,7 @@ function AlterarPasswordContent() {
     );
   }
 
-  if (!tokenValid) {
+  if (!token) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
@@ -162,12 +124,14 @@ function AlterarPasswordContent() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Link Inválido</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6">
+            Este link é inválido ou já expirou. Por favor, solicite um novo link de recuperação.
+          </p>
           <Link
-            href="/"
+            href="/auth/login"
             className="inline-block bg-green-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition"
           >
-            Voltar ao Início
+            Voltar ao Login
           </Link>
         </div>
       </main>
@@ -194,11 +158,9 @@ function AlterarPasswordContent() {
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Alterar Password</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Nova Palavra-passe</h1>
           <p className="text-gray-600 mt-2">
-            Olá <span className="font-semibold text-green-700">{userName}</span>!
-            <br />
-            Defina a sua nova password.
+            Defina a sua nova palavra-passe abaixo.
           </p>
         </div>
 
@@ -213,27 +175,7 @@ function AlterarPasswordContent() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password Temporária
-            </label>
-            <input
-              type="text"
-              value={formData.tempPassword}
-              onChange={(e) =>
-                setFormData({ ...formData, tempPassword: e.target.value })
-              }
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-lg tracking-wider"
-              placeholder="Insira a password do email"
-              required
-              autoComplete="off"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              A password temporária que recebeu no email
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nova Password
+              Nova Palavra-passe
             </label>
             <input
               type="password"
@@ -250,7 +192,7 @@ function AlterarPasswordContent() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirmar Nova Password
+              Confirmar Palavra-passe
             </label>
             <input
               type="password"
@@ -259,7 +201,7 @@ function AlterarPasswordContent() {
                 setFormData({ ...formData, confirmPassword: e.target.value })
               }
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="Repita a nova password"
+              placeholder="Repita a palavra-passe"
               required
               minLength={6}
             />
@@ -270,13 +212,13 @@ function AlterarPasswordContent() {
             disabled={loading}
             className="w-full bg-green-700 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
           >
-            {loading ? "A processar..." : "Alterar Password"}
+            {loading ? "A guardar..." : "Guardar Nova Palavra-passe"}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-gray-600 hover:text-green-700">
-            Voltar ao site
+          <Link href="/auth/login" className="text-sm text-gray-600 hover:text-green-700">
+            ← Voltar ao Login
           </Link>
         </div>
       </div>

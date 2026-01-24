@@ -450,6 +450,63 @@ export async function sendCustomCampaignEmail({
   return sendEmail({ to, subject, html });
 }
 
+// Template: Esqueceu a Password (pedido pelo utilizador)
+export async function sendForgotPasswordEmail(
+  email: string,
+  name: string,
+  resetToken: string
+) {
+  const resetUrl = `${APP_URL}/alterar-password?token=${resetToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #166534 0%, #14532d 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">Terapias Manuais Samuel</h1>
+      </div>
+
+      <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+        <h2 style="color: #166534; margin-top: 0;">Olá ${name}!</h2>
+
+        <p>Recebemos um pedido para redefinir a palavra-passe da sua conta. Clique no botão abaixo para criar uma nova palavra-passe:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background: #166534; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Redefinir Palavra-passe
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px;">Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+        <p style="color: #166534; font-size: 14px; word-break: break-all;">${resetUrl}</p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 0 8px 8px 0;">
+          <p style="color: #92400e; margin: 0; font-size: 14px;">
+            <strong>Importante:</strong> Este link expira em 1 hora. Se não solicitou esta alteração, pode ignorar este email.
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+        <p>&copy; ${new Date().getFullYear()} Terapias Manuais Samuel. Todos os direitos reservados.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Redefinir Palavra-passe - Terapias Manuais Samuel",
+    html,
+  });
+}
+
 // Template: Reset de Password (enviado pelo admin)
 export async function sendPasswordResetEmail(
   email: string,

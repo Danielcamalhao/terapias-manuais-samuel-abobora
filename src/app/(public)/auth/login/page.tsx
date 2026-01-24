@@ -13,6 +13,10 @@ function LoginForm() {
   const [showVerificationWarning, setShowVerificationWarning] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState("");
 
   // Verificar query params na inicialização
   const registeredParam = searchParams.get("registered");
@@ -26,6 +30,37 @@ function LoginForm() {
       setSuccess("Email verificado com sucesso! Já pode fazer login.");
     }
   }, [registeredParam, verifiedParam]);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) {
+      setForgotPasswordMessage("Por favor, introduza o seu email.");
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    setForgotPasswordMessage("");
+
+    try {
+      const res = await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setForgotPasswordMessage("Se o email existir, receberá instruções para redefinir a palavra-passe.");
+      } else {
+        setForgotPasswordMessage(data.error || "Erro ao processar pedido.");
+      }
+    } catch {
+      setForgotPasswordMessage("Erro de conexão. Tente novamente.");
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
 
   const handleResendVerification = async () => {
     if (!email) {
@@ -221,9 +256,23 @@ function LoginForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full border border-gray-300 rounded-md p-2 mb-4"
+          className="w-full border border-gray-300 rounded-md p-2 mb-2"
           required
         />
+
+        <div className="text-right mb-4">
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(true);
+              setForgotPasswordEmail(email);
+              setForgotPasswordMessage("");
+            }}
+            className="text-sm text-green-700 hover:text-green-800 hover:underline"
+          >
+            Esqueceu a palavra-passe?
+          </button>
+        </div>
 
         {success && (
           <p className="text-green-600 text-sm mb-4 text-center bg-green-50 p-2 rounded">
@@ -258,6 +307,73 @@ function LoginForm() {
           </p>
         </div>
       </form>
+
+      {/* Modal Esqueceu Palavra-passe */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Recuperar Palavra-passe</h3>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setForgotPasswordMessage("");
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-4">
+              Introduza o seu email e enviaremos um link para redefinir a sua palavra-passe.
+            </p>
+
+            <form onSubmit={handleForgotPassword}>
+              <input
+                type="email"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                placeholder="O seu email"
+                className="w-full border border-gray-300 rounded-md p-3 mb-4"
+                required
+              />
+
+              {forgotPasswordMessage && (
+                <p className={`text-sm mb-4 p-3 rounded ${
+                  forgotPasswordMessage.includes("receberá")
+                    ? "text-green-700 bg-green-50"
+                    : "text-red-700 bg-red-50"
+                }`}>
+                  {forgotPasswordMessage}
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={forgotPasswordLoading}
+                  className="flex-1 bg-green-700 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-800 transition disabled:opacity-50"
+                >
+                  {forgotPasswordLoading ? "A enviar..." : "Enviar Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordMessage("");
+                  }}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
