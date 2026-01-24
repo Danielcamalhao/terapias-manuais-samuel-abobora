@@ -25,7 +25,7 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
     <main className="min-h-screen bg-gray-50 px-6 py-16">
       <div className="max-w-5xl mx-auto bg-white shadow-md rounded-xl overflow-hidden">
         {/* Imagem principal */}
-        <div className="relative w-full h-80 sm:h-96">
+        <div className="relative w-full h-80 sm:h-96 bg-gray-100">
           <Image
             src={service.imageUrl || "/placeholder-service.jpg"}
             alt={service.name}

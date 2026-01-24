@@ -243,7 +243,7 @@ export default function ServicosBackofficePage() {
                   <img
                     src={formData.imageUrl}
                     alt="Pré-visualização"
-                    className="w-48 h-32 object-cover rounded-md border"
+                    className="w-48 h-32 object-cover rounded-md border bg-gray-100"
                   />
                   <button
                     type="button"
@@ -331,7 +331,7 @@ export default function ServicosBackofficePage() {
                   <img
                     src={s.imageUrl}
                     alt={s.name}
-                    className="w-full h-40 object-cover rounded-md mb-3"
+                    className="w-full h-40 object-cover rounded-md mb-3 bg-gray-100"
                   />
                 )}
                 <h2 className="text-lg font-semibold text-green-800 mb-1">

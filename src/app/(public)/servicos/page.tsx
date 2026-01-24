@@ -36,7 +36,7 @@ export default async function ServicosPage() {
             className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300"
           >
             {/* Imagem */}
-            <div className="relative h-56 w-full">
+            <div className="relative h-56 w-full bg-gray-100">
               <Image
                 src={s.imageUrl || "/placeholder-service.jpg"}
                 alt={s.name}

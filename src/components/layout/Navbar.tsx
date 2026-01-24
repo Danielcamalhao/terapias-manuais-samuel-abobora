@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface User {
   id: string;
@@ -21,6 +21,10 @@ export default function Navbar() {
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Verificar se está na área de cliente
+  const isInClientArea = pathname?.startsWith("/dashboard") || pathname?.startsWith("/marcacoes") || pathname?.startsWith("/perfil");
 
   useEffect(() => {
     // Verificar localStorage apenas no cliente
@@ -142,12 +146,29 @@ export default function Navbar() {
               <span className="relative z-10">Área Cliente</span>
             </Link>
           ) : (
-            <button
-              onClick={handleLogout}
-              className="relative overflow-hidden bg-red-50 border-2 border-red-200 text-red-600 px-5 py-2.5 rounded-lg font-semibold tracking-wide group transition-all duration-300 hover:bg-red-500 hover:text-white hover:border-red-500"
-            >
-              <span className="relative z-10">Terminar Sessão</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard"
+                className={`relative overflow-hidden px-5 py-2.5 rounded-lg font-semibold tracking-wide transition-all duration-300 ${
+                  isInClientArea
+                    ? "bg-linear-to-r from-primary-700 to-primary-600 text-white shadow-lg shadow-primary-500/30 ring-2 ring-primary-400 ring-offset-2"
+                    : "bg-linear-to-r from-primary-600 to-primary-500 border border-primary-600 text-white hover:shadow-neon-sm hover:from-primary-700 hover:to-primary-600"
+                }`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {isInClientArea && (
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  )}
+                  Área Cliente
+                </span>
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="relative overflow-hidden bg-red-50 border-2 border-red-200 text-red-600 px-4 py-2.5 rounded-lg font-semibold tracking-wide group transition-all duration-300 hover:bg-red-500 hover:text-white hover:border-red-500"
+              >
+                <span className="relative z-10">Sair</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
