@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import DatePicker from "@/components/DatePicker";
 
 interface Profile {
   id: string;
@@ -245,13 +246,11 @@ export default function PerfilPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Data de Nascimento
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={formData.birthDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, birthDate: e.target.value })
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    onChange={(date) => setFormData({ ...formData, birthDate: date })}
+                    placeholder="Selecionar data de nascimento"
+                    maxDate={new Date().toISOString().split("T")[0]}
                   />
                 </div>
 

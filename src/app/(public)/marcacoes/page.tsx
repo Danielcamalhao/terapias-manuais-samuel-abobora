@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import DatePicker from "@/components/DatePicker";
 import {
   Calendar,
   dateFnsLocalizer,
@@ -604,13 +605,11 @@ function MarcacoesContent() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Data *
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={minDate}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  required
+                  onChange={setSelectedDate}
+                  minDate={minDate}
+                  placeholder="Selecionar data"
                 />
               </div>
 

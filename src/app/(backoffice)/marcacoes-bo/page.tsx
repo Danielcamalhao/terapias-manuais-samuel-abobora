@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import DatePicker from "@/components/DatePicker";
 import {
   Calendar,
   dateFnsLocalizer,
@@ -697,12 +698,10 @@ export default function MarcacoesBackoffice() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Data *
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3"
-                    required
+                    onChange={setSelectedDate}
+                    placeholder="Selecionar data"
                   />
                 </div>
 
@@ -799,11 +798,10 @@ export default function MarcacoesBackoffice() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Filtrar por Data
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                onChange={setFilterDate}
+                placeholder="Filtrar por data"
               />
             </div>
           </div>
