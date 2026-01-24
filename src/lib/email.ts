@@ -25,16 +25,23 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
+    console.log(`📧 A tentar enviar email para: ${to}`);
+    console.log(`📧 SMTP Host: ${process.env.SMTP_HOST || "smtp.gmail.com"}`);
+    console.log(`📧 SMTP User: ${process.env.SMTP_USER ? "✓ Configurado" : "✗ NÃO CONFIGURADO"}`);
+    console.log(`📧 SMTP Pass: ${process.env.SMTP_PASS ? "✓ Configurado" : "✗ NÃO CONFIGURADO"}`);
+
     const info = await transporter.sendMail({
       from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
       to,
       subject,
       html,
     });
-    console.log("Email enviado:", info.messageId);
+    console.log("✅ Email enviado:", info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("Erro ao enviar email:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("❌ Erro ao enviar email:", errorMessage);
+    console.error("❌ Detalhes completos:", error);
     return { success: false, error };
   }
 }

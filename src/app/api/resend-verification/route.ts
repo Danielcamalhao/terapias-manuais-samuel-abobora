@@ -52,6 +52,15 @@ export async function POST() {
       },
     });
 
+    // Verificar se variáveis SMTP estão configuradas
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error("❌ Variáveis SMTP não configuradas");
+      return NextResponse.json(
+        { error: "Configuração de email em falta. Contacte o administrador." },
+        { status: 500 }
+      );
+    }
+
     // Enviar email
     const emailResult = await sendResendVerificationEmail(
       user.email,
@@ -60,9 +69,12 @@ export async function POST() {
     );
 
     if (!emailResult.success) {
-      console.error("Erro ao reenviar email:", emailResult.error);
+      const errorMessage = emailResult.error instanceof Error
+        ? emailResult.error.message
+        : String(emailResult.error);
+      console.error("Erro ao reenviar email:", errorMessage);
       return NextResponse.json(
-        { error: "Erro ao enviar email. Tente novamente." },
+        { error: `Erro ao enviar email: ${errorMessage}` },
         { status: 500 }
       );
     }
