@@ -144,10 +144,8 @@ export default function ClientesBackoffice() {
     setVerificationMessage(null);
 
     try {
-      const res = await fetch("/api/resend-verification", {
+      const res = await fetch(`/api/admin/users/${editingUser.id}/resend-verification`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: editingUser.email }),
       });
 
       const data = await res.json();

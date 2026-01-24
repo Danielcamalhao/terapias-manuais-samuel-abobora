@@ -12,7 +12,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM || "noreply@terapiasmanuais.pt";
+// Gmail requer que o FROM seja o mesmo que o SMTP_USER autenticado
+const FROM_EMAIL = process.env.SMTP_USER || process.env.SMTP_FROM || "noreply@terapiasmanuais.pt";
 const FROM_NAME = process.env.SMTP_FROM_NAME || "Terapias Manuais Samuel";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
