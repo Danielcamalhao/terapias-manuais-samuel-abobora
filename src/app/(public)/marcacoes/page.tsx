@@ -255,6 +255,63 @@ function MarcacoesContent() {
     );
   };
 
+  // Função para gerar URL do Google Calendar
+  const generateGoogleCalendarUrl = (booking: Booking) => {
+    const startDate = new Date(booking.startAt);
+    const endDate = new Date(booking.endAt);
+
+    // Formato: YYYYMMDDTHHmmssZ
+    const formatDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    };
+
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: `${booking.service.name} - Terapias Manuais Samuel`,
+      dates: `${formatDate(startDate)}/${formatDate(endDate)}`,
+      details: `Marcação confirmada: ${booking.service.name}\nCódigo: ${booking.code}\nDuração: ${booking.service.durationMin} minutos${booking.notes ? `\nNotas: ${booking.notes}` : ""}`,
+      location: "Terapias Manuais Samuel",
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  // Função para gerar e descarregar ficheiro ICS (Apple Calendar, Outlook, etc.)
+  const downloadIcsFile = (booking: Booking) => {
+    const startDate = new Date(booking.startAt);
+    const endDate = new Date(booking.endAt);
+
+    // Formato ICS: YYYYMMDDTHHmmssZ
+    const formatDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    };
+
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Terapias Manuais Samuel//PT
+BEGIN:VEVENT
+UID:${booking.id}@terapiasmanuaissamuel.pt
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${formatDate(startDate)}
+DTEND:${formatDate(endDate)}
+SUMMARY:${booking.service.name} - Terapias Manuais Samuel
+DESCRIPTION:Marcação confirmada: ${booking.service.name}\\nCódigo: ${booking.code}\\nDuração: ${booking.service.durationMin} minutos${booking.notes ? `\\nNotas: ${booking.notes}` : ""}
+LOCATION:Terapias Manuais Samuel
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `marcacao-${booking.code}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const calendarEvents = useMemo(() => {
     const baseEvents: CalendarEvent[] = myBookings.map((booking) => ({
       id: booking.id,
@@ -785,10 +842,39 @@ function MarcacoesContent() {
                         )}
                       </div>
 
+                      {/* Botões de adicionar ao calendário - só para confirmadas e futuras */}
+                      {!isPast && booking.status === "CONFIRMED" && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <p className="text-xs text-gray-500 mb-2 font-medium">Adicionar ao Calendário:</p>
+                          <div className="flex gap-2">
+                            <a
+                              href={generateGoogleCalendarUrl(booking)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-green-500 transition"
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-2a8 8 0 100-16 8 8 0 000 16zm1-8h4v2h-6V7h2v5z"/>
+                              </svg>
+                              Google
+                            </a>
+                            <button
+                              onClick={() => downloadIcsFile(booking)}
+                              className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-green-500 transition"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              iCal/Outlook
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {!isPast && booking.status !== "CANCELLED" && (
                         <button
                           onClick={() => handleCancelBooking(booking.id)}
-                          className="mt-4 w-full text-red-600 hover:text-red-700 text-sm font-semibold"
+                          className={`${booking.status === "CONFIRMED" ? "mt-3" : "mt-4"} w-full text-red-600 hover:text-red-700 text-sm font-semibold`}
                         >
                           Cancelar Marcação
                         </button>

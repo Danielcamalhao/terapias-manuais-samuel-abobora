@@ -16,9 +16,12 @@ interface Booking {
   id: string;
   code: string;
   startAt: string;
+  endAt: string;
   status: string;
+  notes: string | null;
   service: {
     name: string;
+    durationMin: number;
   };
 }
 
@@ -92,6 +95,61 @@ export default function ClienteDashboard() {
     }
   };
 
+  // Função para gerar URL do Google Calendar
+  const generateGoogleCalendarUrl = (booking: Booking) => {
+    const startDate = new Date(booking.startAt);
+    const endDate = new Date(booking.endAt);
+
+    const formatDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    };
+
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: `${booking.service.name} - Terapias Manuais Samuel`,
+      dates: `${formatDate(startDate)}/${formatDate(endDate)}`,
+      details: `Marcação confirmada: ${booking.service.name}\nCódigo: ${booking.code}\nDuração: ${booking.service.durationMin} minutos${booking.notes ? `\nNotas: ${booking.notes}` : ""}`,
+      location: "Terapias Manuais Samuel",
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  // Função para descarregar ficheiro ICS
+  const downloadIcsFile = (booking: Booking) => {
+    const startDate = new Date(booking.startAt);
+    const endDate = new Date(booking.endAt);
+
+    const formatDate = (date: Date) => {
+      return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    };
+
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Terapias Manuais Samuel//PT
+BEGIN:VEVENT
+UID:${booking.id}@terapiasmanuaissamuel.pt
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${formatDate(startDate)}
+DTEND:${formatDate(endDate)}
+SUMMARY:${booking.service.name} - Terapias Manuais Samuel
+DESCRIPTION:Marcação confirmada: ${booking.service.name}\\nCódigo: ${booking.code}\\nDuração: ${booking.service.durationMin} minutos${booking.notes ? `\\nNotas: ${booking.notes}` : ""}
+LOCATION:Terapias Manuais Samuel
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `marcacao-${booking.code}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -103,12 +161,30 @@ export default function ClienteDashboard() {
   if (!profile) return null;
 
   // Calcular estatísticas
+  const now = new Date();
   const activeBookings = bookings.filter(
-    (b) => b.status === "PENDING" || b.status === "CONFIRMED"
+    (b) => (b.status === "PENDING" || b.status === "CONFIRMED") && new Date(b.startAt) > now
   );
-  const nextBooking = activeBookings
-    .filter((b) => new Date(b.startAt) > new Date())
-    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0];
+  const completedBookings = bookings.filter(
+    (b) => new Date(b.startAt) <= now || b.status === "COMPLETED"
+  );
+  const upcomingBookings = activeBookings
+    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  const nextBooking = upcomingBookings[0];
+
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, { bg: string; text: string; label: string }> = {
+      PENDING: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendente" },
+      CONFIRMED: { bg: "bg-green-100", text: "text-green-700", label: "Confirmada" },
+      COMPLETED: { bg: "bg-blue-100", text: "text-blue-700", label: "Realizada" },
+    };
+    const badge = badges[status] || badges.PENDING;
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    );
+  };
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-gray-50 via-green-50/20 to-gray-100 px-6 py-12">
@@ -119,10 +195,10 @@ export default function ClienteDashboard() {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
-        {/* Título da Página */}
-        <div className="mb-6">
+        {/* Cabeçalho com Título e Ações */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-linear-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
@@ -132,61 +208,34 @@ export default function ClienteDashboard() {
               <p className="text-gray-500 text-sm">Gerencie as suas marcações e dados pessoais</p>
             </div>
           </div>
-        </div>
-
-        {/* Cabeçalho */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8 mb-8">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-16 h-16 bg-linear-to-br from-green-600 to-emerald-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-                    Olá, {profile.name}!
-                  </h2>
-                  <p className="text-gray-600 text-sm">Bem-vindo à sua área pessoal</p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-50 border-2 border-red-200 text-red-600 px-6 py-3 rounded-xl font-semibold transition hover:bg-red-500 hover:text-white hover:border-red-500"
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                  />
-                </svg>
-                Terminar Sessão
-              </span>
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="self-start md:self-auto bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg font-medium text-sm transition hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Terminar Sessão
+          </button>
         </div>
 
         {/* Aviso de Email não verificado */}
         {!profile.emailVerified && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 mb-8 shadow-lg">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-amber-800">Email não verificado</h3>
-                  <p className="text-amber-700 text-sm mt-1">
-                    Por favor, verifique o seu email para ter acesso a todas as funcionalidades.
-                    Verifique a sua caixa de correio (incluindo spam).
+                  <h3 className="text-sm font-bold text-amber-800">Email não verificado</h3>
+                  <p className="text-amber-700 text-xs mt-0.5">
+                    Verifique o seu email para ter acesso a todas as funcionalidades.
                   </p>
                   {verificationMessage && (
-                    <p className={`text-sm mt-2 font-medium ${
+                    <p className={`text-xs mt-1 font-medium ${
                       verificationMessage.type === "success" ? "text-green-700" : "text-red-700"
                     }`}>
                       {verificationMessage.text}
@@ -197,11 +246,11 @@ export default function ClienteDashboard() {
               <button
                 onClick={handleResendVerification}
                 disabled={resendingVerification}
-                className="bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                className="bg-amber-600 text-white px-4 py-2 rounded-lg font-medium text-sm hover:bg-amber-700 transition disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
               >
                 {resendingVerification ? (
                   <>
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -209,10 +258,10 @@ export default function ClienteDashboard() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    Reenviar Email
+                    Reenviar
                   </>
                 )}
               </button>
@@ -220,169 +269,259 @@ export default function ClienteDashboard() {
           </div>
         )}
 
-        {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6 hover:shadow-xl transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                📅
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm font-medium mb-1">Marcações Ativas</p>
-            <p className="text-3xl font-bold text-gray-900">{activeBookings.length}</p>
-          </div>
-
-          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6 hover:shadow-xl transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                ⏰
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm font-medium mb-1">Próxima Sessão</p>
-            <p className="text-3xl font-bold text-gray-900">
-              {nextBooking
-                ? new Date(nextBooking.startAt).toLocaleDateString("pt-PT", {
-                    day: "2-digit",
-                    month: "2-digit",
-                  })
-                : "-"}
-            </p>
-          </div>
-
-          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6 hover:shadow-xl transition">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-                ✅
-              </div>
-            </div>
-            <p className="text-gray-600 text-sm font-medium mb-1">Sessões Totais</p>
-            <p className="text-3xl font-bold text-gray-900">{bookings.length}</p>
-          </div>
-        </div>
-
-        {/* Ações Rápidas */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-              ⚡
-            </div>
-            Ações Rápidas
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link
-              href="/marcacoes"
-              className="group relative overflow-hidden bg-gradient-to-r from-green-700 via-green-600 to-emerald-600 text-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
-            >
-              <div className="relative z-10 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg mb-1">Agendar Sessão</p>
-                  <p className="text-white/80 text-sm">Reserve o seu próximo tratamento</p>
-                </div>
-                <svg
-                  className="w-8 h-8 group-hover:translate-x-2 transition-transform"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
+        {/* Ações Rápidas - Botões menores */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <Link
+            href="/marcacoes"
+            className="group bg-gradient-to-r from-green-700 to-emerald-600 text-white p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </div>
-            </Link>
+              <div>
+                <p className="font-semibold">Agendar Sessão</p>
+                <p className="text-white/70 text-xs">Reserve o seu tratamento</p>
+              </div>
+            </div>
+          </Link>
 
-            <Link
-              href="/perfil"
-              className="group bg-white border-2 border-green-500/30 text-green-700 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 hover:border-green-500"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg mb-1">Meu Perfil</p>
-                  <p className="text-gray-600 text-sm">Editar informações pessoais</p>
-                </div>
-                <svg
-                  className="w-8 h-8 group-hover:translate-x-2 transition-transform"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
+          <Link
+            href="/perfil"
+            className="group bg-white border border-gray-200 text-gray-700 p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:border-green-500"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-            </Link>
-          </div>
+              <div>
+                <p className="font-semibold">Meu Perfil</p>
+                <p className="text-gray-500 text-xs">Editar dados pessoais</p>
+              </div>
+            </div>
+          </Link>
         </div>
 
         {/* Próximas Marcações */}
-        {nextBooking && (
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Próxima Marcação</h2>
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Próximas Marcações
+          </h2>
 
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {nextBooking.service.name}
-                  </h3>
-                  <div className="space-y-2 text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <span className="font-medium">
-                        {new Date(nextBooking.startAt).toLocaleDateString("pt-PT", {
-                          weekday: "long",
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="font-medium">
-                        {new Date(nextBooking.startAt).toLocaleTimeString("pt-PT", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <span className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm">
-                  {nextBooking.status === "CONFIRMED" ? "Confirmada" : "Pendente"}
-                </span>
-              </div>
-
-              <Link
-                href="/marcacoes"
-                className="mt-4 inline-block text-green-700 font-semibold hover:text-green-800"
-              >
-                Ver todas as marcações →
+          {upcomingBookings.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-sm">Não tem marcações agendadas</p>
+              <Link href="/marcacoes" className="text-green-600 text-sm font-medium hover:text-green-700 mt-2 inline-block">
+                Agendar agora →
               </Link>
             </div>
+          ) : (
+            <div className="space-y-3">
+              {upcomingBookings.map((booking) => {
+                const startDate = new Date(booking.startAt);
+                return (
+                  <div
+                    key={booking.id}
+                    className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{booking.service.name}</h3>
+                          {getStatusBadge(booking.status)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>
+                              {startDate.toLocaleDateString("pt-PT", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>
+                              {startDate.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botões de calendário para confirmadas */}
+                    {booking.status === "CONFIRMED" && (
+                      <div className="mt-3 pt-3 border-t border-green-200">
+                        <p className="text-xs text-gray-500 mb-2">Adicionar ao Calendário:</p>
+                        <div className="flex gap-2">
+                          <a
+                            href={generateGoogleCalendarUrl(booking)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-green-300 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-2a8 8 0 100-16 8 8 0 000 16zm1-8h4v2h-6V7h2v5z"/>
+                            </svg>
+                            Google
+                          </a>
+                          <button
+                            onClick={() => downloadIcsFile(booking)}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-green-300 text-green-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-50 transition"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            iCal/Outlook
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Histórico de Marcações Realizadas */}
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Histórico de Sessões
+          </h2>
+
+          {completedBookings.length === 0 ? (
+            <div className="text-center py-6 text-gray-500">
+              <p className="text-sm">Ainda não realizou nenhuma sessão</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {completedBookings
+                .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime())
+                .slice(0, 10)
+                .map((booking) => {
+                  const startDate = new Date(booking.startAt);
+                  return (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-gray-900">{booking.service.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {startDate.toLocaleDateString("pt-PT", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {startDate.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+          {completedBookings.length > 10 && (
+            <Link href="/marcacoes" className="text-green-600 text-sm font-medium hover:text-green-700 mt-3 inline-block">
+              Ver histórico completo →
+            </Link>
+          )}
+        </div>
+
+        {/* Dashboard - Estatísticas */}
+        <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Resumo
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Marcações Activas */}
+            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center shadow">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Marcações Activas</p>
+                  <p className="text-2xl font-bold text-gray-900">{activeBookings.length}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Próxima Sessão */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-500 rounded-lg flex items-center justify-center shadow">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Próxima Sessão</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {nextBooking
+                      ? new Date(nextBooking.startAt).toLocaleDateString("pt-PT", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Total de Sessões Realizadas */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Sessões Realizadas</p>
+                  <p className="text-2xl font-bold text-gray-900">{completedBookings.length}</p>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </main>
   );
