@@ -74,7 +74,7 @@ const locales = { "pt-PT": pt, pt };
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek,
+  startOfWeek: (date: Date) => startOfWeek(date, { weekStartsOn: 1, locale: pt }),
   getDay,
   locales,
 });
@@ -826,6 +826,15 @@ export default function MarcacoesBackoffice() {
               }
               min={businessDayStart}
               max={businessDayEnd}
+              culture="pt-PT"
+              formats={{
+                weekdayFormat: (date: Date) => format(date, "EEE", { locale: pt }),
+                dayFormat: (date: Date) => format(date, "d EEE", { locale: pt }),
+                dayHeaderFormat: (date: Date) => format(date, "EEEE, d MMMM", { locale: pt }),
+                monthHeaderFormat: (date: Date) => format(date, "MMMM yyyy", { locale: pt }),
+                dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
+                  `${format(start, "d", { locale: pt })} - ${format(end, "d MMMM yyyy", { locale: pt })}`,
+              }}
               messages={{
                 week: "Semana",
                 day: "Dia",

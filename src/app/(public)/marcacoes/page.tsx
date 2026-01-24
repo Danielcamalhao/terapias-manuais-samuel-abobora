@@ -62,7 +62,7 @@ const locales = { "pt-PT": pt, pt };
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek,
+  startOfWeek: (date: Date) => startOfWeek(date, { weekStartsOn: 1, locale: pt }),
   getDay,
   locales,
 });
@@ -568,9 +568,9 @@ END:VCALENDAR`;
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Criar Nova Marcação */}
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-6">
+          <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-3xl shadow-lg border border-white/50 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Nova Marcação</h2>
 
             {/* Formulário compacto */}
@@ -749,6 +749,15 @@ END:VCALENDAR`;
                   draggableAccessor={(event) => !!event.isDraft}
                   min={businessDayStart}
                   max={businessDayEnd}
+                  culture="pt-PT"
+                  formats={{
+                    weekdayFormat: (date: Date) => format(date, "EEE", { locale: pt }),
+                    dayFormat: (date: Date) => format(date, "d EEE", { locale: pt }),
+                    dayHeaderFormat: (date: Date) => format(date, "EEEE, d MMMM", { locale: pt }),
+                    monthHeaderFormat: (date: Date) => format(date, "MMMM yyyy", { locale: pt }),
+                    dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
+                      `${format(start, "d", { locale: pt })} - ${format(end, "d MMMM yyyy", { locale: pt })}`,
+                  }}
                   messages={{
                     week: "Semana",
                     day: "Dia",
@@ -926,13 +935,18 @@ END:VCALENDAR`;
                       {/* Botões de adicionar ao calendário - só para confirmadas e futuras */}
                       {!isPast && booking.status === "CONFIRMED" && (
                         <div className="mt-4 pt-4 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2 font-medium">Adicionar ao Calendário:</p>
+                          <p className="text-xs text-green-700 mb-2 font-semibold flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Adicionar ao Calendário
+                          </p>
                           <div className="flex gap-2">
                             <a
                               href={generateGoogleCalendarUrl(booking)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-green-500 transition"
+                              className="flex-1 flex items-center justify-center gap-2 bg-green-50 border-2 border-green-200 text-green-700 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-green-100 hover:border-green-400 transition shadow-sm"
                             >
                               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-2a8 8 0 100-16 8 8 0 000 16zm1-8h4v2h-6V7h2v5z"/>
@@ -941,7 +955,7 @@ END:VCALENDAR`;
                             </a>
                             <button
                               onClick={() => downloadIcsFile(booking)}
-                              className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 hover:border-green-500 transition"
+                              className="flex-1 flex items-center justify-center gap-2 bg-blue-50 border-2 border-blue-200 text-blue-700 px-3 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-100 hover:border-blue-400 transition shadow-sm"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

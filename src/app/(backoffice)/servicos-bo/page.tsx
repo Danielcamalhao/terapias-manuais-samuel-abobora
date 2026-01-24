@@ -17,6 +17,7 @@ export default function ServicosBackofficePage() {
   const [servicos, setServicos] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Service | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -111,6 +112,7 @@ export default function ServicosBackofficePage() {
         imagePublicId: "",
       });
       setEditing(null);
+      setShowForm(false);
       loadServices();
     } else {
       alert("❌ Erro ao gravar serviço");
@@ -153,11 +155,25 @@ export default function ServicosBackofficePage() {
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-10">
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold text-green-800 mb-6">
-          Gestão de Serviços
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-green-800">
+            Gestão de Serviços
+          </h1>
+          {!showForm && !editing && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 transition-colors shadow-md"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Novo Serviço
+            </button>
+          )}
+        </div>
 
         {/* Formulário */}
+        {(showForm || editing) && (
         <form
           onSubmit={handleSubmit}
           className="bg-white shadow-md rounded-lg p-6 mb-10"
@@ -288,26 +304,25 @@ export default function ServicosBackofficePage() {
           </div>
 
           <div className="mt-6 flex justify-end gap-4">
-            {editing && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(null);
-                  setFormData({
-                    name: "",
-                    description: "",
-                    priceCents: "",
-                    durationMin: "",
-                    active: true,
-                    imageUrl: "",
-                    imagePublicId: "",
-                  });
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setShowForm(false);
+                setFormData({
+                  name: "",
+                  description: "",
+                  priceCents: "",
+                  durationMin: "",
+                  active: true,
+                  imageUrl: "",
+                  imagePublicId: "",
+                });
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+            >
+              Cancelar
+            </button>
             <button
               type="submit"
               className="px-6 py-2 bg-green-700 text-white font-semibold rounded-md hover:bg-green-800"
@@ -316,6 +331,7 @@ export default function ServicosBackofficePage() {
             </button>
           </div>
         </form>
+        )}
 
         {/* Listagem */}
         {loading ? (
