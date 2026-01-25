@@ -262,3 +262,22 @@ model SiteSettings {
 
   updatedAt             DateTime @updatedAt
 }
+
+// ============== INQUÉRITO DE SATISFAÇÃO ==============
+
+model SurveyResponse {
+  id                String   @id @default(uuid())
+  // Dados opcionais do cliente (não obrigatórios para anonimato)
+  clientName        String?
+  clientEmail       String?
+  // Perguntas
+  rating            Int      // 1-5 estrelas - "Como avalia a sua experiência connosco?"
+  improvementAreas  String[] // Array de áreas selecionadas - "O que podemos melhorar?"
+  wantsPromotions   Boolean? // "Gostaria de receber informações sobre promoções?"
+  suggestions       String?  // Texto livre - "Alguma sugestão adicional?"
+  // Metadata
+  read              Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([createdAt])
+}
