@@ -35,9 +35,15 @@ export default function DashboardBackoffice() {
 
   const [selectedInactive, setSelectedInactive] = useState<string[]>([]);
   const [surveySubject, setSurveySubject] = useState("Queremos ouvir a sua opinião");
-  const [surveyMessage, setSurveyMessage] = useState(
-    "Notámos que não voltou às nossas terapias há algum tempo. Pode responder a este breve inquérito? É rápido e agradecemos com um cupão para a próxima sessão: https://example.com/inquerito-retorno"
-  );
+  const [surveyMessage, setSurveyMessage] = useState("");
+
+  // Set survey message with correct URL after mount
+  useEffect(() => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    setSurveyMessage(
+      `Notámos que não voltou às nossas terapias há algum tempo. Pode responder a este breve inquérito? É rápido e agradecemos com um cupão para a próxima sessão: ${appUrl}/inquerito-retorno`
+    );
+  }, []);
   const [sending, setSending] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
